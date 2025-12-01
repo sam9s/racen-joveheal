@@ -1,0 +1,112 @@
+I want you to build a web-chatbot application for a wellness & coaching business (JoveHeal). The chatbot will serve as a front-line information-bot for website visitors.
+The primary source of information will be https://www.joveheal.com/
+
+Purpose & Scope (Phase-1 / MVP):
+
+The bot will answer questions related to the services, programs, and general information about JoveHeal (coaching, healing, membership, workshops) based on a knowledge base derived from website content and PDF / document files I will upload.
+
+The bot will not handle bookings, payments, or sensitive personal data yet. It is purely for information-seeking / FAQ / program-details use-cases.
+
+Functional Requirements:
+
+Visitors should be able to open a chat widget on website or a shareable link and type natural-language questions (e.g. “What is the Balance Mastery+ program?”, “Do you have group healing sessions?”, “What are the fees?”, “What is the refund policy?”, “How do I join Inner Mastery Lounge?”).
+
+The bot should respond with answers based on the knowledge base (website text + uploaded documents).
+
+The bot should reference appropriate program names, avoid hallucinations, and indicate if it doesn’t know the answer (instead of making up content).
+
+The bot should support basic conversational flow — follow-up questions, clarifications, and context awareness within a session.
+
+Backend should store minimal logs of conversations (timestamp + user-question + bot-answer) for debugging / review. No user-P-II storage needed in Phase 1.
+
+The app should be deployed on Replit with a stable URL so I can share with client immediately for demo.
+
+Knowledge-Base Ingestion:
+
+I will upload (or link) a set of files: website export (text), PDF brochures, program-detail docs, FAQ docs — these should be ingested by the bot.
+
+The bot should use those as source material for responses (i.e. embed or index them).
+
+Tech & Integration Preferences:
+
+Use Python (or Node.js) backend — whichever Agent chooses.
+
+Use a simple web-chat UI (can be basic, no fancy styling needed).
+
+Use a vector-search + LLM retrieval-augmented generation (RAG) approach so responses remain grounded in source docs, to avoid hallucinations.
+
+Ensure the code is structured clearly so later we (your dev team) can extend it to full version (booking, scheduling, multi-channel front ends like Instagram / WhatsApp).
+
+Deliverable:
+
+A fully working web link + chat widget.
+
+Clear instructions for how to upload docs & update knowledge-base.
+
+Simple deployment instructions so we can hand over to client for evaluation.
+
+Build the minimal viable product (MVP) for this Phase-1 info-bot.
+
+The Virtual Agent must NOT provide any advice, suggestions, instructions, or interpretations that qualify as medical, psychological, psychiatric, therapeutic, or life-threatening guidance.
+
+A. Zero Medical Advice Policy
+The agent must never:
+Diagnose any condition (mental or physical)
+Suggest treatment, medication, supplements
+Recommend stopping or starting treatments
+Evaluate symptoms
+Provide crisis or emergency advice
+Give instructions that could affect physical health
+Provide interventions related to trauma, depression, anxiety disorders, PTSD, or similar medical/mental health conditions
+
+B. Zero High-Risk Emotional Advice Policy
+The agent must not:
+Offer solutions for extreme emotional distress
+Handle self-harm, suicidal thoughts, or severe anxiety
+Give advice on abuse, violence, or dangerous situations
+Replace therapy or counseling
+Provide instructions that could emotionally harm the user
+
+C. Required Safety Redirect Behavior
+If a user asks anything that touches:
+Extreme emotional pain
+Suicidal or self-harm thoughts
+Mental health disorders
+Physical health/medical issues
+Anything requiring licensed professionals
+The agent must respond with a safe redirection, such as:
+“I’m really sorry you’re feeling this way. I’m not able to give medical or mental-health advice, but you deserve real support. Please consider reaching out to a qualified professional or emergency service in your area.”
+
+No matter the situation, it should
+✔ Avoid judgment
+✔ Stay empathetic
+✔ Redirect to professional help
+✔ Avoid giving instructions, steps, or treatment advice
+
+D. Content Filters Must Be Enforced
+Vendor must ensure:
+Strict filtering on keywords (self-harm, suicidal terms, trauma, medication, symptoms)
+Automated escalation to human if needed
+Logging of high-risk conversations
+Immediate stop of conversation when danger is detected
+Safety fallback prompts inserted into the AI model
+
+E. Compliance Requirements
+The agent must comply with:
+Instagram's policies
+General AI safety guidelines
+No diagnosing, treating, or managing “conditions”
+No claims about guaranteed mental transformation or medical benefit
+No misleading health statements
+
+F. Allowed Guidance
+The agent can provide:
+General mindset motivation
+Daily routines
+Productivity habits
+Clarity exercises
+Goal-setting prompts
+Confidence-building strategies
+Mindset inspiration
+Non-clinical, general self-improvement suggestions
+Everything must stay in the realm of mindset coaching, not therapy.
