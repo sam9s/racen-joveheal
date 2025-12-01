@@ -28,10 +28,6 @@ args = "Webhook Server"
 task = "workflow.run"
 args = "Frontend"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Production"
-
 [[workflows.workflow]]
 name = "Webhook Server"
 author = "agent"
@@ -55,18 +51,6 @@ outputType = "webview"
 task = "shell.exec"
 args = "npx next dev -p 5000 -H 0.0.0.0"
 waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Production"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash start.sh"
-waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[ports]]
 localPort = 5000
