@@ -1,0 +1,10 @@
+{
+  "documents": [
+    {
+      "filename": "joveheal_sample.txt",
+      "type": "text",
+      "chunks": 5
+    }
+  ],
+  "last_scrape": null
+}
