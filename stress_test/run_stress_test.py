@@ -1,3 +1,15 @@
+#!/usr/bin/env python3
+"""
+Stress Test Runner for JoveHeal Chatbot
+
+Usage:
+    python stress_test/run_stress_test.py [batch_number]
+    
+Examples:
+    python stress_test/run_stress_test.py 1    # Process batch 1
+    python stress_test/run_stress_test.py 2    # Process batch 2
+"""
+
 import re
 import time
 import json
@@ -34,19 +46,30 @@ def parse_questions_by_section(md_file_path):
     
     return sections
 
-def run_stress_test():
-    """Main stress test runner - creates ONE consolidated output file."""
+def run_stress_test(batch_num=1):
+    """Main stress test runner - creates ONE consolidated output file per batch."""
     print("\n" + "="*60)
-    print("JOVEHEAL CHATBOT STRESS TEST")
+    print(f"JOVEHEAL CHATBOT STRESS TEST - BATCH {batch_num}")
     print("="*60)
     
     if not is_openai_available():
         print("ERROR: OpenAI is not configured. Cannot run stress test.")
         return
     
-    md_file = "stress_test/stress_test_md/120_questions_batch1.md"
+    md_file = f"stress_test/stress_test_md/120_questions_batch{batch_num}.md"
     output_dir = "stress_test/stress_test_md_output"
-    output_file = f"{output_dir}/batch1_full_results.md"
+    output_file = f"{output_dir}/batch{batch_num}_full_results.md"
+    
+    if not os.path.exists(md_file):
+        clean_file = f"stress_test/stress_test_md/120_questions_batch{batch_num}_clean.md"
+        if os.path.exists(clean_file):
+            md_file = clean_file
+            print(f"Using deduplicated file: {clean_file}")
+        else:
+            print(f"ERROR: Batch file not found: {md_file}")
+            return
+    
+    os.makedirs(output_dir, exist_ok=True)
     
     print(f"\nParsing questions from: {md_file}")
     sections = parse_questions_by_section(md_file)
@@ -118,12 +141,13 @@ def run_stress_test():
     print(f"\n\nWriting consolidated output to: {output_file}")
     
     with open(output_file, 'w') as f:
-        f.write("# JoveHeal Chatbot Stress Test - Full Results (Batch 1)\n\n")
+        f.write(f"# JoveHeal Chatbot Stress Test - Full Results (Batch {batch_num})\n\n")
         f.write("---\n\n")
         f.write("## SUMMARY\n\n")
         f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         f.write(f"| Metric | Value |\n")
         f.write(f"|--------|-------|\n")
+        f.write(f"| Batch Number | {batch_num} |\n")
         f.write(f"| Total Questions | {total_questions} |\n")
         f.write(f"| Total Sections | {len(sections)} |\n")
         f.write(f"| Total Execution Time | {overall_time} seconds |\n")
@@ -160,9 +184,19 @@ def run_stress_test():
     print("\n" + "="*60)
     print("STRESS TEST COMPLETE")
     print("="*60)
+    print(f"Batch: {batch_num}")
     print(f"Total time: {overall_time} seconds")
     print(f"Output saved to: {output_file}")
     print("="*60)
 
 if __name__ == "__main__":
-    run_stress_test()
+    batch_num = 1
+    if len(sys.argv) > 1:
+        try:
+            batch_num = int(sys.argv[1])
+        except ValueError:
+            print(f"Invalid batch number: {sys.argv[1]}")
+            print("Usage: python run_stress_test.py [batch_number]")
+            sys.exit(1)
+    
+    run_stress_test(batch_num)
