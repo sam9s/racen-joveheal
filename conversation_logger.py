@@ -420,6 +420,40 @@ def get_feedback_summary() -> Dict[str, Any]:
         return {"total": 0, "positive": 0, "negative": 0, "comments": []}
 
 
+def log_feedback(session_id: str, is_positive: bool, comment: str = None) -> bool:
+    """
+    Log feedback for a session (simpler interface for the frontend).
+    
+    Args:
+        session_id: Session identifier
+        is_positive: True for thumbs up, False for thumbs down
+        comment: Optional feedback comment
+    
+    Returns:
+        True if feedback was saved successfully
+    """
+    if not is_database_available():
+        return False
+    
+    try:
+        with get_db_session() as db:
+            if db is None:
+                return False
+            
+            rating = 1 if is_positive else -1
+            
+            feedback = ResponseFeedback(
+                conversation_id=None,
+                rating=rating,
+                comment=comment
+            )
+            db.add(feedback)
+            return True
+    except Exception as e:
+        print(f"Failed to log feedback: {e}")
+        return False
+
+
 def clear_old_logs(days: int = 30) -> int:
     """Remove logs older than specified number of days."""
     if is_database_available():
