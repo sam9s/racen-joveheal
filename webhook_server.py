@@ -5,10 +5,12 @@ Flask-based API server handling:
 - WhatsApp webhooks (via Twilio)
 - Instagram webhooks (via Meta Graph API)
 - Direct API access for custom integrations
+- React frontend API endpoints
 """
 
 import os
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 from channel_handlers import (
     whatsapp_handler,
@@ -16,14 +18,19 @@ from channel_handlers import (
     process_channel_message,
     get_channel_status
 )
+from chatbot_engine import generate_response
+from conversation_logger import log_feedback
 
 app = Flask(__name__)
+CORS(app)
+
+conversation_histories = {}
 
 
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint."""
-    return jsonify({"status": "healthy", "service": "JoveHeal Webhook Server"})
+    return jsonify({"status": "healthy", "service": "R.A.C.E.N API Server"})
 
 
 @app.route("/api/channels/status", methods=["GET"])
@@ -106,47 +113,91 @@ def instagram_webhook():
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
-    """Direct API endpoint for chat integration."""
+    """Direct API endpoint for chat integration - used by React frontend."""
     data = request.get_json()
     
     if not data:
         return jsonify({"error": "No data provided"}), 400
     
     message = data.get("message")
-    user_id = data.get("user_id", "anonymous")
-    channel = data.get("channel", "api")
+    session_id = data.get("session_id", "anonymous")
+    conversation_history = data.get("conversation_history", [])
     
     if not message:
         return jsonify({"error": "Message is required"}), 400
     
-    response = process_channel_message(
-        channel=channel,
-        user_id=user_id,
-        message=message
-    )
+    if session_id not in conversation_histories:
+        conversation_histories[session_id] = []
+    
+    if conversation_history:
+        conversation_histories[session_id] = conversation_history
+    
+    result = generate_response(message, conversation_histories[session_id])
+    
+    conversation_histories[session_id].append({"role": "user", "content": message})
+    conversation_histories[session_id].append({"role": "assistant", "content": result.get("response", "")})
+    
+    if len(conversation_histories[session_id]) > 20:
+        conversation_histories[session_id] = conversation_histories[session_id][-20:]
     
     return jsonify({
-        "response": response,
-        "user_id": user_id,
-        "channel": channel
+        "response": result.get("response", "I apologize, but I encountered an issue. Please try again."),
+        "sources": result.get("sources", []),
+        "safety_triggered": result.get("safety_triggered", False),
+        "session_id": session_id
     })
 
 
 @app.route("/api/chat/reset", methods=["POST"])
 def api_chat_reset():
-    """Reset conversation for a user."""
-    from channel_handlers import ChannelSession
-    
+    """Reset conversation for a session."""
     data = request.get_json()
-    user_id = data.get("user_id", "anonymous")
-    channel = data.get("channel", "api")
+    session_id = data.get("session_id", "anonymous")
     
-    ChannelSession.clear_session(channel, user_id)
+    if session_id in conversation_histories:
+        del conversation_histories[session_id]
     
     return jsonify({
         "status": "success",
         "message": "Conversation reset"
     })
+
+
+@app.route("/api/feedback", methods=["POST"])
+def api_feedback():
+    """Submit feedback for a response."""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    session_id = data.get("session_id", "anonymous")
+    message_id = data.get("message_id", "")
+    feedback = data.get("feedback", "")
+    comment = data.get("comment", "")
+    
+    if feedback not in ["up", "down"]:
+        return jsonify({"error": "Invalid feedback value"}), 400
+    
+    is_positive = feedback == "up"
+    
+    try:
+        log_feedback(
+            session_id=session_id,
+            is_positive=is_positive,
+            comment=comment if comment else None
+        )
+        
+        return jsonify({
+            "status": "success",
+            "message": "Feedback recorded"
+        })
+    except Exception as e:
+        print(f"Error logging feedback: {e}")
+        return jsonify({
+            "status": "error",
+            "message": "Failed to record feedback"
+        }), 500
 
 
 if __name__ == "__main__":
