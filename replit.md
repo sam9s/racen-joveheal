@@ -39,7 +39,14 @@ A RAG-based web chatbot for JoveHeal wellness coaching business. The chatbot ser
 ### Knowledge Base
 - PDF document upload and processing
 - Text file ingestion with validation
-- Sample document with JoveHeal business information
+- **Website content ingested** (7 pages, 60+ chunks):
+  - Homepage - business overview, Shaveta's story
+  - Services - full list including Relationship Healing, Career Healing, Balance Mastery, etc.
+  - About - Shaveta's background, mission, qualifications
+  - Balance Mastery - 3-month premium 1:1 coaching program details
+  - Inner Mastery Lounge - membership community and course library
+  - Elevate 360 - 5-month group healing program
+  - Testimonials - client success stories
 - ChromaDB vector storage for semantic search
 - Content validation (rejects binary/malformed content)
 
