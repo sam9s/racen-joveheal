@@ -4,25 +4,44 @@
 
 :root {
   --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 10, 10, 15;
-  --background-end-rgb: 15, 20, 30;
+  --background-rgb: 10, 10, 15;
+  --surface-rgb: 20, 20, 30;
+  --card-rgb: 30, 30, 45;
 }
 
 .light {
-  --foreground-rgb: 20, 20, 20;
-  --background-start-rgb: 245, 245, 250;
-  --background-end-rgb: 255, 255, 255;
+  --foreground-rgb: 30, 30, 40;
+  --background-rgb: 245, 247, 250;
+  --surface-rgb: 255, 255, 255;
+  --card-rgb: 240, 242, 245;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: rgb(var(--background-rgb));
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Theme-aware background classes */
+.bg-theme {
+  background-color: rgb(var(--background-rgb));
+}
+
+.bg-theme-surface {
+  background-color: rgb(var(--surface-rgb));
+}
+
+.bg-theme-card {
+  background-color: rgb(var(--card-rgb));
+}
+
+.text-theme {
+  color: rgb(var(--foreground-rgb));
+}
+
+.text-theme-muted {
+  color: rgba(var(--foreground-rgb), 0.6);
 }
 
 /* Custom scrollbar */
@@ -103,7 +122,12 @@ body {
 .gradient-border {
   position: relative;
   background: linear-gradient(135deg, rgba(3, 169, 244, 0.1), rgba(3, 169, 244, 0.05));
-  border: 1px solid rgba(3, 169, 244, 0.2);
+  border: 1px solid rgba(3, 169, 244, 0.3);
+}
+
+.light .gradient-border {
+  background: linear-gradient(135deg, rgba(3, 169, 244, 0.05), rgba(3, 169, 244, 0.02));
+  border: 1px solid rgba(3, 169, 244, 0.4);
 }
 
 .gradient-border::before {
@@ -118,4 +142,31 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+/* Header style in light mode */
+.light .header-bg {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-bottom-color: rgba(3, 169, 244, 0.2);
+}
+
+/* Button styles */
+.btn-theme {
+  background-color: rgba(var(--surface-rgb), 0.8);
+  border: 1px solid rgba(3, 169, 244, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-theme:hover {
+  background-color: rgba(3, 169, 244, 0.1);
+  border-color: rgba(3, 169, 244, 0.5);
+}
+
+.light .btn-theme {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(3, 169, 244, 0.4);
+}
+
+.light .btn-theme:hover {
+  background-color: rgba(3, 169, 244, 0.1);
 }

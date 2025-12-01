@@ -48,10 +48,10 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
       className={`message-enter flex ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-3 ${
+        className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-3 transition-colors duration-300 ${
           isUser
-            ? 'bg-primary-500/20 border border-primary-500/30 text-white'
-            : 'bg-dark-700/50 border border-gray-700/50 text-gray-100'
+            ? 'bg-primary-500/20 border border-primary-500/30 text-theme'
+            : 'bg-theme-card border border-primary-500/10 text-theme'
         }`}
       >
         <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
@@ -59,13 +59,13 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
         </div>
         
         {!isUser && message.sources && message.sources.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-700/30">
-            <p className="text-xs text-gray-500 mb-1">Sources:</p>
+          <div className="mt-3 pt-3 border-t border-primary-500/10">
+            <p className="text-xs text-theme-muted mb-1">Sources:</p>
             <div className="flex flex-wrap gap-1">
               {message.sources.map((source, index) => (
                 <span
                   key={index}
-                  className="text-xs px-2 py-0.5 rounded bg-dark-600/50 text-primary-400/80"
+                  className="text-xs px-2 py-0.5 rounded bg-primary-500/10 text-primary-500"
                 >
                   {source}
                 </span>
@@ -75,16 +75,16 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
         )}
         
         {!isUser && (
-          <div className="mt-3 pt-3 border-t border-gray-700/30">
+          <div className="mt-3 pt-3 border-t border-primary-500/10">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Was this helpful?</span>
+              <span className="text-xs text-theme-muted">Was this helpful?</span>
               <button
                 onClick={() => handleFeedbackClick('up')}
                 disabled={!!message.feedbackGiven}
                 className={`p-1.5 rounded transition-colors ${
                   message.feedbackGiven === 'up'
-                    ? 'text-green-400 bg-green-400/10'
-                    : 'text-gray-500 hover:text-green-400 hover:bg-green-400/10'
+                    ? 'text-green-500 bg-green-500/10'
+                    : 'text-theme-muted hover:text-green-500 hover:bg-green-500/10'
                 } disabled:cursor-not-allowed`}
                 aria-label="Thumbs up"
               >
@@ -97,8 +97,8 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                 disabled={!!message.feedbackGiven}
                 className={`p-1.5 rounded transition-colors ${
                   message.feedbackGiven === 'down'
-                    ? 'text-red-400 bg-red-400/10'
-                    : 'text-gray-500 hover:text-red-400 hover:bg-red-400/10'
+                    ? 'text-red-500 bg-red-500/10'
+                    : 'text-theme-muted hover:text-red-500 hover:bg-red-500/10'
                 } disabled:cursor-not-allowed`}
                 aria-label="Thumbs down"
               >
@@ -114,13 +114,13 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                   value={feedbackComment}
                   onChange={(e) => setFeedbackComment(e.target.value)}
                   placeholder="What could be improved? (optional)"
-                  className="w-full px-3 py-2 text-sm bg-dark-600/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500/50 resize-none"
+                  className="w-full px-3 py-2 text-sm bg-theme-surface border border-primary-500/20 rounded-lg text-theme placeholder-gray-500 focus:outline-none focus:border-primary-500/50 resize-none transition-colors duration-300"
                   rows={2}
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={submitFeedback}
-                    className="px-3 py-1 text-xs bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded transition-colors"
+                    className="px-3 py-1 text-xs bg-primary-500/20 hover:bg-primary-500/30 text-primary-500 rounded transition-colors"
                   >
                     Submit
                   </button>
@@ -130,7 +130,7 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                       setFeedbackComment('');
                       setPendingFeedback(null);
                     }}
-                    className="px-3 py-1 text-xs bg-gray-700/50 hover:bg-gray-700 text-gray-400 rounded transition-colors"
+                    className="px-3 py-1 text-xs bg-theme-surface hover:bg-primary-500/10 text-theme-muted rounded transition-colors border border-primary-500/10"
                   >
                     Cancel
                   </button>

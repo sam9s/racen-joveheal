@@ -126,16 +126,18 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-dark-900 dark:bg-dark-900 light:bg-gray-50">
+    <main className="flex min-h-screen flex-col bg-theme transition-colors duration-300">
       <Header onReset={resetConversation} />
       
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4">
+      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4">
         <div className="flex-1 overflow-y-auto py-6 space-y-4">
           {messages.length === 0 && (
-            <div className="flex-1 flex items-center justify-center min-h-[50vh]">
-              <div className="text-center text-gray-500 dark:text-gray-400">
-                <p className="text-lg">Welcome to R.A.C.E.N</p>
-                <p className="text-sm mt-2">Ask me anything about JoveHeal's services and programs</p>
+            <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <p className="text-xl font-light text-theme-muted">Welcome to R.A.C.E.N</p>
+                <p className="text-sm mt-2 text-theme-muted opacity-70">
+                  Ask me anything about JoveHeal's services and programs
+                </p>
               </div>
             </div>
           )}
@@ -153,7 +155,7 @@ export default function Home() {
           <div ref={messagesEndRef} />
         </div>
         
-        <div className="sticky bottom-0 pb-6 pt-2 bg-gradient-to-t from-dark-900 via-dark-900 to-transparent dark:from-dark-900 dark:via-dark-900">
+        <div className="sticky bottom-0 pb-6 pt-4">
           <ChatInput onSend={sendMessage} disabled={isLoading} />
         </div>
       </div>

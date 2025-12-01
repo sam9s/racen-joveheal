@@ -24,23 +24,29 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   };
 
+  const isButtonEnabled = input.trim().length > 0 && !disabled;
+
   return (
     <div className="relative">
       <div className="gradient-border rounded-full overflow-hidden">
-        <div className="flex items-center bg-dark-800/90 dark:bg-dark-800/90 rounded-full">
+        <div className="flex items-center bg-theme-surface/90 rounded-full transition-colors duration-300">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={disabled}
-            placeholder="Welcome to RACEN - Ask -> What Can I Do"
-            className="flex-1 px-6 py-4 bg-transparent text-white placeholder-gray-500 focus:outline-none disabled:opacity-50"
+            placeholder="Ask me anything about JoveHeal..."
+            className="flex-1 px-6 py-4 bg-transparent text-theme placeholder-gray-500 focus:outline-none disabled:opacity-50"
           />
           <button
             onClick={handleSubmit}
-            disabled={disabled || !input.trim()}
-            className="mr-2 p-3 rounded-full bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all glow"
+            disabled={!isButtonEnabled}
+            className={`mr-2 p-3 rounded-full transition-all duration-200 ${
+              isButtonEnabled 
+                ? 'bg-primary-500 hover:bg-primary-600 glow cursor-pointer' 
+                : 'bg-gray-600 cursor-not-allowed opacity-50'
+            }`}
             aria-label="Send message"
           >
             <svg
