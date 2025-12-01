@@ -39,6 +39,11 @@
       "filename": "website_testimonials.txt",
       "type": "text",
       "chunks": 14
+    },
+    {
+      "filename": "website_contact.txt",
+      "type": "text",
+      "chunks": 1
     }
   ],
   "last_scrape": null

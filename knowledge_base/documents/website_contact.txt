@@ -1,0 +1,15 @@
+JoveHeal - Contact Page
+Source: https://www.joveheal.com/contact
+
+Let's Connect
+
+Whether you have questions about my programs, need guidance on the best path for you, or are ready to take the next step, I'd love to hear from you. Reach out, and let's start a conversation about your transformation.
+
+Contact Form Available:
+- Name
+- Email
+- Country selection
+- Employment status question
+- Message field
+
+Medical Disclaimer: The information and services provided are not a substitute for professional medical advice, diagnosis, or treatment. We are not licensed medical professionals, psychologists, or therapists. Please consult with a qualified healthcare provider for any medical concerns.
