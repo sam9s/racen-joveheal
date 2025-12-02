@@ -285,8 +285,8 @@ def inject_program_links(response: str) -> str:
     Post-process LLM response to add clickable links to program mentions.
     This is deterministic and doesn't change the persona behavior.
     
-    Converts mentions like "Balance Mastery" to "[Balance Mastery](https://joveheal.com/balance-mastery/)"
-    Only converts if not already a markdown link.
+    Converts mentions like "Balance Mastery" or "balance mastery" to "[Balance Mastery](https://joveheal.com/balance-mastery/)"
+    Case-insensitive matching, only converts if not already a markdown link.
     """
     import re
     
@@ -296,11 +296,13 @@ def inject_program_links(response: str) -> str:
         if program_name in ["Services", "About", "Testimonials", "Contact", "Homepage"]:
             continue
         
-        pattern = rf'(?<!\[){re.escape(program_name)}(?!\]|\()'
+        pattern = rf'(?<!\[)({re.escape(program_name)})(?!\]|\()'
         
-        if re.search(pattern, result):
+        match = re.search(pattern, result, re.IGNORECASE)
+        if match:
+            matched_text = match.group(1)
             markdown_link = f"[{program_name}]({url})"
-            result = re.sub(pattern, markdown_link, result, count=1)
+            result = result[:match.start()] + markdown_link + result[match.end():]
     
     return result
 
