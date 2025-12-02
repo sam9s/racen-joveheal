@@ -156,9 +156,15 @@ RACEN now includes clickable links when mentioning any JoveHeal program:
 - Balance Mastery → https://joveheal.com/balance-mastery/
 - Inner Mastery Lounge → https://joveheal.com/inner-mastery-lounge/
 - Elevate 360 → https://joveheal.com/elevate-360/
+- Relationship Healing → https://joveheal.com/relationship-healing/
+- Career Healing → https://joveheal.com/career-healing/
+- Beyond the Hustle → https://joveheal.com/beyond-the-hustle/
+- Inner Reset → https://joveheal.com/inner-reset/
+- Shed & Shine → https://joveheal.com/shed-and-shine/
 - Services → https://joveheal.com/services/
 - About → https://joveheal.com/about/
 - Testimonials → https://joveheal.com/testimonials/
+- Contact → https://joveheal.com/contact/
 
 **Implementation:**
 - URL mapping: `JOVEHEAL_PROGRAM_URLS` in safety_guardrails.py

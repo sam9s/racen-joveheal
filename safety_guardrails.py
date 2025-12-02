@@ -14,9 +14,15 @@ JOVEHEAL_PROGRAM_URLS = {
     "Balance Mastery": "https://joveheal.com/balance-mastery/",
     "Inner Mastery Lounge": "https://joveheal.com/inner-mastery-lounge/",
     "Elevate 360": "https://joveheal.com/elevate-360/",
+    "Relationship Healing": "https://joveheal.com/relationship-healing/",
+    "Career Healing": "https://joveheal.com/career-healing/",
+    "Beyond the Hustle": "https://joveheal.com/beyond-the-hustle/",
+    "Inner Reset": "https://joveheal.com/inner-reset/",
+    "Shed & Shine": "https://joveheal.com/shed-and-shine/",
     "Services": "https://joveheal.com/services/",
     "About": "https://joveheal.com/about/",
     "Testimonials": "https://joveheal.com/testimonials/",
+    "Contact": "https://joveheal.com/contact/",
     "Homepage": "https://joveheal.com/",
 }
 
@@ -234,9 +240,15 @@ When you mention any of these programs, include the link in markdown format:
 - Balance Mastery → [Balance Mastery](https://joveheal.com/balance-mastery/)
 - Inner Mastery Lounge → [Inner Mastery Lounge](https://joveheal.com/inner-mastery-lounge/)
 - Elevate 360 → [Elevate 360](https://joveheal.com/elevate-360/)
+- Relationship Healing → [Relationship Healing](https://joveheal.com/relationship-healing/)
+- Career Healing → [Career Healing](https://joveheal.com/career-healing/)
+- Beyond the Hustle → [Beyond the Hustle](https://joveheal.com/beyond-the-hustle/)
+- Inner Reset → [Inner Reset](https://joveheal.com/inner-reset/)
+- Shed & Shine → [Shed & Shine](https://joveheal.com/shed-and-shine/)
 - Services overview → [our services](https://joveheal.com/services/)
 - About Shaveta/JoveHeal → [about us](https://joveheal.com/about/)
 - Testimonials → [testimonials](https://joveheal.com/testimonials/)
+- Contact → [contact us](https://joveheal.com/contact/)
 - JoveHeal website → [JoveHeal](https://joveheal.com/)
 
 === DO / DON'T ===
