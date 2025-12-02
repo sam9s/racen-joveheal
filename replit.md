@@ -150,23 +150,20 @@ The chatbot follows strict safety policies:
 - Safe redirection for crisis/distress situations
 - Stays within mindset coaching, not therapy
 
-## Next Session Task (Priority)
+## Clickable Program Links (Implemented Dec 2025)
 
-**Add clickable program links in RACEN responses:**
-- When RACEN mentions or suggests any program, include a clickable link to that program's page on joveheal.com
-- Apply to ALL ingested pages (7 pages total):
-  - Homepage → https://joveheal.com/
-  - About → https://joveheal.com/about/
-  - Services → https://joveheal.com/services/
-  - Balance Mastery → https://joveheal.com/balance-mastery/
-  - Inner Mastery Lounge → https://joveheal.com/inner-mastery-lounge/
-  - Elevate 360 → https://joveheal.com/elevate-360/
-  - Testimonials → https://joveheal.com/testimonials/
+RACEN now includes clickable links when mentioning any JoveHeal program:
+- Balance Mastery → https://joveheal.com/balance-mastery/
+- Inner Mastery Lounge → https://joveheal.com/inner-mastery-lounge/
+- Elevate 360 → https://joveheal.com/elevate-360/
+- Services → https://joveheal.com/services/
+- About → https://joveheal.com/about/
+- Testimonials → https://joveheal.com/testimonials/
 
-**Implementation approach:**
-1. Create a URL mapping dictionary in safety_guardrails.py or chatbot_engine.py
-2. Inject link instructions into RACEN's system prompt
-3. Ensure links render as clickable in the chat UI (markdown support)
+**Implementation:**
+- URL mapping: `JOVEHEAL_PROGRAM_URLS` in safety_guardrails.py
+- Prompt injection: Detailed persona includes link instructions and examples
+- UI rendering: `renderMarkdownLinks()` in ChatMessage.tsx converts markdown links to clickable `<a>` tags
 
 ## RACEN Persona Configuration
 
