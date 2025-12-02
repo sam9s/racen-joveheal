@@ -6,7 +6,7 @@ packages = ["glibcLocales"]
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["sh", "-c", "npx next start -p 5000 -H 0.0.0.0 & python webhook_server.py"]
+run = ["sh", "-c", "bash start_production.sh"]
 build = ["sh", "-c", "npx next build"]
 
 [agent]
