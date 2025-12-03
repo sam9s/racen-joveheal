@@ -13,7 +13,7 @@ from typing import List, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from knowledge_base import search_knowledge_base, get_knowledge_base_stats
-from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety, inject_program_links
+from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety, inject_program_links, append_contextual_links
 
 _openai_client = None
 
@@ -156,7 +156,9 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
         
         filtered_response, was_filtered = filter_response_for_safety(assistant_message)
         
-        final_response = inject_program_links(filtered_response)
+        response_with_program_links = inject_program_links(filtered_response)
+        
+        final_response = append_contextual_links(user_message, response_with_program_links)
         
         sources = []
         for doc in relevant_docs:

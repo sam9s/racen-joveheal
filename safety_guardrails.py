@@ -19,12 +19,57 @@ JOVEHEAL_PROGRAM_URLS = {
     "Beyond the Hustle": "https://joveheal.com/beyond-the-hustle/",
     "Inner Reset": "https://joveheal.com/inner-reset/",
     "Shed & Shine": "https://joveheal.com/shed-and-shine/",
+    "Healing Sessions": "https://joveheal.com/healing-sessions/",
+    "Healing Circle": "https://joveheal.com/healing-circle/",
+    "Meta-U": "https://joveheal.com/meta-u/",
+    "Money and Abundance": "https://joveheal.com/money-abundance-manifestation/",
     "Services": "https://joveheal.com/services/",
     "About": "https://joveheal.com/about/",
     "Testimonials": "https://joveheal.com/testimonials/",
     "Contact": "https://joveheal.com/contact/",
     "Homepage": "https://joveheal.com/",
 }
+
+TOPIC_TO_PROGRAMS = {
+    "career": ["Career Healing", "Beyond the Hustle"],
+    "job": ["Career Healing", "Beyond the Hustle"],
+    "work": ["Career Healing", "Beyond the Hustle"],
+    "professional": ["Career Healing", "Balance Mastery"],
+    "relationship": ["Relationship Healing"],
+    "marriage": ["Relationship Healing"],
+    "partner": ["Relationship Healing"],
+    "divorce": ["Relationship Healing"],
+    "family": ["Relationship Healing"],
+    "burnout": ["Beyond the Hustle", "Inner Reset"],
+    "exhausted": ["Beyond the Hustle", "Inner Reset"],
+    "tired": ["Beyond the Hustle", "Inner Reset"],
+    "overwhelmed": ["Beyond the Hustle", "Inner Reset"],
+    "stress": ["Inner Reset", "Beyond the Hustle"],
+    "anxiety": ["Inner Reset", "Balance Mastery"],
+    "mindset": ["Balance Mastery", "Inner Mastery Lounge"],
+    "coaching": ["Balance Mastery", "Services"],
+    "healing": ["Healing Sessions", "Services"],
+    "transformation": ["Balance Mastery", "Elevate 360"],
+    "energy": ["Healing Sessions", "Balance Mastery"],
+    "emotional": ["Inner Reset", "Beyond the Hustle"],
+    "community": ["Inner Mastery Lounge", "Healing Circle"],
+    "support": ["Inner Mastery Lounge", "Elevate 360"],
+    "group": ["Elevate 360", "Inner Mastery Lounge"],
+    "money": ["Money and Abundance"],
+    "abundance": ["Money and Abundance"],
+    "wealth": ["Money and Abundance"],
+    "financial": ["Money and Abundance", "Career Healing"],
+    "confidence": ["Shed & Shine", "Balance Mastery"],
+    "self-worth": ["Shed & Shine", "Inner Reset"],
+    "weight": ["Shed & Shine"],
+    "body": ["Shed & Shine"],
+}
+
+WARM_CLOSING_SENTENCES = [
+    "Feel free to explore more when you're ready:",
+    "If you'd like to dive deeper, these might resonate with you:",
+    "Here are some programs that align with what we discussed:",
+]
 
 CRISIS_KEYWORDS = [
     "suicide", "suicidal", "kill myself", "end my life", "want to die", 
@@ -305,6 +350,84 @@ def inject_program_links(response: str) -> str:
             result = result[:match.start()] + markdown_link + result[match.end():]
     
     return result
+
+
+def _response_has_urls(response: str) -> bool:
+    """Check if the response already contains markdown URLs."""
+    import re
+    return bool(re.search(r'\[[^\]]+\]\([^)]+\)', response))
+
+
+def _is_crisis_response(response: str) -> bool:
+    """Check if this is a crisis/safety redirect response."""
+    crisis_indicators = [
+        "crisis hotline",
+        "mental health professional",
+        "licensed therapist",
+        "988",
+        "911",
+        "emergency services",
+        "professional support",
+        "reach out to qualified professionals"
+    ]
+    response_lower = response.lower()
+    return any(indicator in response_lower for indicator in crisis_indicators)
+
+
+def _get_programs_for_query(query: str) -> list:
+    """
+    Analyze query keywords and return relevant programs (max 3, deduplicated).
+    """
+    query_lower = query.lower()
+    suggested_programs = []
+    seen = set()
+    
+    for keyword, programs in TOPIC_TO_PROGRAMS.items():
+        if keyword in query_lower:
+            for program in programs:
+                if program not in seen and len(suggested_programs) < 3:
+                    suggested_programs.append(program)
+                    seen.add(program)
+    
+    return suggested_programs
+
+
+def append_contextual_links(query: str, response: str) -> str:
+    """
+    Append contextual program links at the end of response if:
+    1. Response has no URLs already (RACEN didn't mention specific programs)
+    2. Query matches at least one topic keyword
+    3. Not a crisis response
+    
+    Returns the response with optional warm closing and program links appended.
+    """
+    import random
+    
+    if _response_has_urls(response):
+        return response
+    
+    if _is_crisis_response(response):
+        return response
+    
+    programs = _get_programs_for_query(query)
+    
+    if not programs:
+        return response
+    
+    warm_sentence = random.choice(WARM_CLOSING_SENTENCES)
+    
+    links = []
+    for program in programs:
+        if program in JOVEHEAL_PROGRAM_URLS:
+            url = JOVEHEAL_PROGRAM_URLS[program]
+            links.append(f"[{program}]({url})")
+    
+    if not links:
+        return response
+    
+    closing_block = f"\n\n---\n\n*{warm_sentence}*\n" + " | ".join(links)
+    
+    return response + closing_block
 
 
 def get_system_prompt() -> str:
