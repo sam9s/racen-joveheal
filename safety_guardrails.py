@@ -43,8 +43,8 @@ MENTAL_HEALTH_KEYWORDS = [
 
 MEDICAL_KEYWORDS = [
     "medication", "medicine", "prescription", "dosage", "side effects",
-    "symptoms", "diagnosis", "diagnose", "treatment", "antidepressant",
-    "antipsychotic", "benzodiazepine", "ssri", "therapy",
+    "symptoms", "diagnosis", "diagnose", "treatment", "therapy",
+    "antidepressant", "antipsychotic", "benzodiazepine", "ssri",
     "blood pressure", "heart condition", "diabetes", "cancer",
     "chronic pain", "disease", "medical condition", "doctor said",
     "should i stop taking", "should i start taking", "drug interaction"
@@ -353,29 +353,74 @@ OUTPUT_FORBIDDEN_PATTERNS = [
     r"(symptoms? of|signs? of) .*(mental|psychological|psychiatric)",
 ]
 
+SAFE_REDIRECT_PATTERNS = [
+    r"(recommend|suggest|encourage|reach out to|consult|speak with|talk to|see|contact).{0,30}(professional|therapist|counselor|doctor|physician|psychiatrist|psychologist|licensed|qualified|mental health)",
+    r"(professional|therapist|counselor|doctor|licensed|qualified).{0,20}(support|help|care|guidance|advice)",
+    r"(don'?t|do not|cannot|can'?t|unable to|not able to|not equipped to).{0,30}(offer|provide).{0,30}(therapy|counseling|medical|treatment|diagnosis)",
+    r"(we'?re not|i'?m not|joveheal is not|this is not).{0,30}(therapy|counseling|substitute|replacement)",
+    r"(outside|beyond|not within).{0,20}(what i can|my scope|my expertise|what we offer)",
+]
+
+UNSAFE_ADVICE_PATTERNS = [
+    r"(i recommend|you should|try|you need).{0,20}(therapy|counseling|treatment) for (your|the|this)",
+    r"(start|begin|get|undergo|seek).{0,15}(therapy|treatment|counseling) (for|to help with)",
+    r"(therapy|treatment|medication) (will|can|should|would).{0,15}(help|fix|cure|treat)",
+    r"(you have|sounds like|appears to be|i think you have).{0,20}(depression|anxiety|disorder|condition)",
+]
+
+
+def _split_into_sentences(text: str) -> list:
+    """Split text into sentences for sentence-scoped analysis."""
+    import re
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    return [s.strip() for s in sentences if s.strip()]
+
+
+def _sentence_has_protected_keyword(sentence: str) -> bool:
+    """Check if a sentence contains a protected keyword."""
+    sentence_lower = sentence.lower()
+    protected_keywords = CRISIS_KEYWORDS + MEDICAL_KEYWORDS[:10]
+    return any(kw in sentence_lower for kw in protected_keywords)
+
+
+def _sentence_matches_safe_redirect(sentence: str) -> bool:
+    """Check if a sentence matches safe redirect patterns (professional referral)."""
+    import re
+    sentence_lower = sentence.lower()
+    return any(re.search(pattern, sentence_lower) for pattern in SAFE_REDIRECT_PATTERNS)
+
+
+def _sentence_matches_unsafe_advice(sentence: str) -> bool:
+    """Check if a sentence matches unsafe advice patterns (giving medical/therapy advice)."""
+    import re
+    sentence_lower = sentence.lower()
+    return any(re.search(pattern, sentence_lower) for pattern in UNSAFE_ADVICE_PATTERNS)
+
 
 def filter_response_for_safety(response: str) -> Tuple[str, bool]:
     """
-    Filter LLM response for safety concerns.
+    Filter LLM response for safety concerns using sentence-scoped analysis.
     Returns (filtered_response, was_filtered)
     
-    If the response contains forbidden content, it will be replaced
-    with a safe redirect message.
+    Logic:
+    1. Split response into sentences
+    2. For each sentence with a protected keyword:
+       - If it matches a SAFE_REDIRECT_PATTERN → ALLOW (professional referral)
+       - If it matches an UNSAFE_ADVICE_PATTERN → BLOCK (giving advice)
+    3. Check global OUTPUT_FORBIDDEN_PATTERNS as final catch
     """
-    response_lower = response.lower()
-    
-    for keyword in CRISIS_KEYWORDS + MEDICAL_KEYWORDS[:10]:
-        if keyword in response_lower:
-            advice_indicators = [
-                "you should", "i recommend", "try to", "you need to",
-                "you must", "take some", "here's how", "steps to",
-                "prescribe", "diagnose"
-            ]
-            for indicator in advice_indicators:
-                if indicator in response_lower:
-                    return OUTPUT_SAFETY_REDIRECT, True
-    
     import re
+    
+    sentences = _split_into_sentences(response)
+    
+    for sentence in sentences:
+        if _sentence_has_protected_keyword(sentence):
+            if _sentence_matches_safe_redirect(sentence):
+                continue
+            if _sentence_matches_unsafe_advice(sentence):
+                return OUTPUT_SAFETY_REDIRECT, True
+    
+    response_lower = response.lower()
     for pattern in OUTPUT_FORBIDDEN_PATTERNS:
         if re.search(pattern, response_lower):
             return OUTPUT_SAFETY_REDIRECT, True
