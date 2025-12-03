@@ -63,7 +63,39 @@ TOPIC_TO_PROGRAMS = {
     "self-worth": ["Shed & Shine", "Inner Reset"],
     "weight": ["Shed & Shine"],
     "body": ["Shed & Shine"],
+    "success": ["Balance Mastery", "Career Healing"],
+    "succeed": ["Balance Mastery", "Career Healing"],
+    "goals": ["Balance Mastery", "Career Healing"],
+    "happiness": ["Inner Reset", "Balance Mastery"],
+    "happy": ["Inner Reset", "Balance Mastery"],
+    "life": ["Balance Mastery", "Inner Mastery Lounge"],
+    "purpose": ["Balance Mastery", "Career Healing"],
+    "fulfillment": ["Balance Mastery", "Inner Reset"],
+    "balance": ["Balance Mastery", "Beyond the Hustle"],
+    "values": ["Balance Mastery"],
+    "connections": ["Relationship Healing", "Inner Mastery Lounge"],
+    "lead": ["Balance Mastery", "Career Healing"],
+    "leadership": ["Balance Mastery", "Career Healing"],
+    "holding you back": ["Inner Reset", "Beyond the Hustle"],
+    "blocks": ["Inner Reset", "Healing Sessions"],
+    "stuck": ["Inner Reset", "Career Healing"],
+    "lost": ["Inner Reset", "Balance Mastery"],
+    "peace": ["Inner Reset", "Inner Mastery Lounge"],
+    "calm": ["Inner Reset", "Inner Mastery Lounge"],
+    "inner": ["Inner Reset", "Inner Mastery Lounge"],
+    "advice": ["Services", "Balance Mastery"],
 }
+
+PROGRAM_INTEREST_PHRASES = [
+    "share more about our programs",
+    "if you're interested",
+    "would you like to know more",
+    "would you like to learn more",
+    "i can share more",
+    "let me know if you'd like",
+    "happy to share",
+    "explore our programs",
+]
 
 WARM_CLOSING_SENTENCES = [
     "Feel free to explore more when you're ready:",
@@ -374,16 +406,16 @@ def _is_crisis_response(response: str) -> bool:
     return any(indicator in response_lower for indicator in crisis_indicators)
 
 
-def _get_programs_for_query(query: str) -> list:
+def _get_programs_from_text(text: str) -> list:
     """
-    Analyze query keywords and return relevant programs (max 3, deduplicated).
+    Analyze text for topic keywords and return relevant programs (max 3, deduplicated).
     """
-    query_lower = query.lower()
+    text_lower = text.lower()
     suggested_programs = []
     seen = set()
     
     for keyword, programs in TOPIC_TO_PROGRAMS.items():
-        if keyword in query_lower:
+        if keyword in text_lower:
             for program in programs:
                 if program not in seen and len(suggested_programs) < 3:
                     suggested_programs.append(program)
@@ -392,12 +424,26 @@ def _get_programs_for_query(query: str) -> list:
     return suggested_programs
 
 
+def _response_shows_program_interest(response: str) -> bool:
+    """
+    Check if RACEN's response indicates willingness to share program info.
+    Used as fallback trigger when no keywords match.
+    """
+    response_lower = response.lower()
+    return any(phrase in response_lower for phrase in PROGRAM_INTEREST_PHRASES)
+
+
 def append_contextual_links(query: str, response: str) -> str:
     """
     Append contextual program links at the end of response if:
     1. Response has no URLs already (RACEN didn't mention specific programs)
-    2. Query matches at least one topic keyword
+    2. Query OR response matches topic keywords
     3. Not a crisis response
+    
+    Flow:
+    - First check query for keywords
+    - If no match, check response for keywords
+    - If still no match but response shows program interest, use fallback (Services)
     
     Returns the response with optional warm closing and program links appended.
     """
@@ -409,7 +455,13 @@ def append_contextual_links(query: str, response: str) -> str:
     if _is_crisis_response(response):
         return response
     
-    programs = _get_programs_for_query(query)
+    programs = _get_programs_from_text(query)
+    
+    if not programs:
+        programs = _get_programs_from_text(response)
+    
+    if not programs and _response_shows_program_interest(response):
+        programs = ["Balance Mastery", "Services"]
     
     if not programs:
         return response
