@@ -43,8 +43,8 @@ MENTAL_HEALTH_KEYWORDS = [
 
 MEDICAL_KEYWORDS = [
     "medication", "medicine", "prescription", "dosage", "side effects",
-    "symptoms", "diagnosis", "diagnose", "treatment", "therapy",
-    "antidepressant", "antipsychotic", "benzodiazepine", "ssri",
+    "symptoms", "diagnosis", "diagnose", "treatment", "antidepressant",
+    "antipsychotic", "benzodiazepine", "ssri", "therapy",
     "blood pressure", "heart condition", "diabetes", "cancer",
     "chronic pain", "disease", "medical condition", "doctor said",
     "should i stop taking", "should i start taking", "drug interaction"
