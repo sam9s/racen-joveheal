@@ -197,7 +197,12 @@ DO mention their specific issues and programs from the summary.
 **** END CRITICAL INSTRUCTION ****
 """
         elif is_returning_user:
-            personalization_context += f"\nThis is a returning user. Welcome them back warmly."
+            personalization_context += f"""
+This is a returning user but you have NO RECORD of their previous conversation topics.
+Welcome them back warmly and ask how you can help today.
+DO NOT mention any specific topics like "stress", "career", "relationships" or any programs as if you discussed them before.
+ONLY say something like: "Great to see you back! How can I help you today?"
+"""
     
     augmented_system_prompt = f"""{system_prompt}
 {personalization_context}
