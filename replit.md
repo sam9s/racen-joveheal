@@ -45,9 +45,18 @@ RACEN (Real-time Advisor for Coaching, Education & Navigation) has a defined per
 ### Chat Interface
 - Natural language Q&A about JoveHeal services
 - Multi-turn conversation with context awareness
+- Context-aware search for follow-up questions (e.g., "tell me more about that program")
 - Source attribution for answers
 - Session-based conversation history
 - User feedback with thumbs up/down and optional comments
+
+### Persistent Conversation Memory (Dec 2025)
+When users sign in with Google:
+- All conversations are saved to PostgreSQL database
+- Sessions are linked to user accounts
+- Returning users load their last 50 messages from previous sessions
+- RACEN remembers what you discussed and can continue the conversation
+- In-memory buffer keeps last 100 messages (50 exchanges) per session
 
 ### Knowledge Base
 - PDF document upload and processing
