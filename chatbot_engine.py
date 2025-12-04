@@ -273,3 +273,77 @@ def check_knowledge_base_status() -> dict:
         "chunks": stats["total_chunks"],
         "last_updated": stats.get("last_scrape")
     }
+
+
+def generate_conversation_summary(conversation_history: List[dict]) -> dict:
+    """
+    Generate a structured summary of the conversation using LLM.
+    Extracts emotional themes, recommended programs, and last topics.
+    """
+    client = get_openai_client()
+    if not client or not conversation_history:
+        return None
+    
+    history_text = ""
+    for msg in conversation_history[-10:]:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        history_text += f"{role.upper()}: {content}\n\n"
+    
+    summary_prompt = """Analyze this conversation and extract key information in a structured format.
+
+CONVERSATION:
+{history}
+
+Respond in this EXACT format (use "None" if not applicable):
+EMOTIONAL_THEMES: [List any emotional issues or feelings the user shared, e.g., "feeling disconnected from society", "stressed at work", "relationship struggles"]
+RECOMMENDED_PROGRAMS: [List any JoveHeal programs mentioned as recommendations, e.g., "Inner Mastery Lounge", "Balance Mastery", "Elevate 360"]
+LAST_TOPICS: [Summarize in 1-2 sentences what the conversation was about]
+CONVERSATION_STATUS: [One of: "exploring programs", "shared personal issue", "asked for contact info", "general inquiry", "follow-up needed"]
+
+Be concise. Focus on the most important emotional themes and program recommendations."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a conversation analyzer. Extract key themes from conversations accurately and concisely."},
+                {"role": "user", "content": summary_prompt.format(history=history_text)}
+            ],
+            temperature=0.3,
+            max_tokens=300
+        )
+        
+        summary_text = response.choices[0].message.content.strip()
+        
+        result = {
+            'emotional_themes': None,
+            'recommended_programs': None,
+            'last_topics': None,
+            'conversation_status': None
+        }
+        
+        for line in summary_text.split('\n'):
+            line = line.strip()
+            if line.startswith('EMOTIONAL_THEMES:'):
+                value = line.replace('EMOTIONAL_THEMES:', '').strip()
+                if value.lower() != 'none' and value != '[]':
+                    result['emotional_themes'] = value
+            elif line.startswith('RECOMMENDED_PROGRAMS:'):
+                value = line.replace('RECOMMENDED_PROGRAMS:', '').strip()
+                if value.lower() != 'none' and value != '[]':
+                    result['recommended_programs'] = value
+            elif line.startswith('LAST_TOPICS:'):
+                value = line.replace('LAST_TOPICS:', '').strip()
+                if value.lower() != 'none':
+                    result['last_topics'] = value
+            elif line.startswith('CONVERSATION_STATUS:'):
+                value = line.replace('CONVERSATION_STATUS:', '').strip()
+                if value.lower() != 'none':
+                    result['conversation_status'] = value
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error generating conversation summary: {e}")
+        return None

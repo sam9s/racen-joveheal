@@ -105,6 +105,21 @@ class AnalyticsDaily(Base):
     negative_feedback = Column(Integer, default=0)
 
 
+class ConversationSummary(Base):
+    """Stores LLM-generated conversation summaries for personalization."""
+    __tablename__ = "conversation_summaries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user_accounts.id"), unique=True, index=True)
+    emotional_themes = Column(Text, nullable=True)
+    recommended_programs = Column(Text, nullable=True)
+    last_topics = Column(Text, nullable=True)
+    conversation_status = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = relationship("UserAccount")
+
+
 def init_database():
     """Initialize database tables."""
     if engine:
@@ -211,3 +226,61 @@ def get_user_conversation_history(user_id: int, limit: int = 20):
             }
             for c in reversed(conversations)
         ]
+
+
+def get_conversation_summary(user_id: int):
+    """Get the stored conversation summary for a user."""
+    with get_db_session() as db:
+        if db is None:
+            return None
+        
+        summary = db.query(ConversationSummary).filter(
+            ConversationSummary.user_id == user_id
+        ).first()
+        
+        if summary:
+            return {
+                'emotional_themes': summary.emotional_themes,
+                'recommended_programs': summary.recommended_programs,
+                'last_topics': summary.last_topics,
+                'conversation_status': summary.conversation_status,
+                'updated_at': summary.updated_at.isoformat() if summary.updated_at else None
+            }
+        return None
+
+
+def upsert_conversation_summary(user_id: int, emotional_themes: str = None,
+                                 recommended_programs: str = None,
+                                 last_topics: str = None,
+                                 conversation_status: str = None):
+    """Create or update conversation summary for a user."""
+    with get_db_session() as db:
+        if db is None:
+            return False
+        
+        summary = db.query(ConversationSummary).filter(
+            ConversationSummary.user_id == user_id
+        ).first()
+        
+        if summary:
+            if emotional_themes is not None:
+                summary.emotional_themes = emotional_themes
+            if recommended_programs is not None:
+                summary.recommended_programs = recommended_programs
+            if last_topics is not None:
+                summary.last_topics = last_topics
+            if conversation_status is not None:
+                summary.conversation_status = conversation_status
+            summary.updated_at = datetime.utcnow()
+        else:
+            summary = ConversationSummary(
+                user_id=user_id,
+                emotional_themes=emotional_themes,
+                recommended_programs=recommended_programs,
+                last_topics=last_topics,
+                conversation_status=conversation_status
+            )
+            db.add(summary)
+        
+        db.commit()
+        return True
