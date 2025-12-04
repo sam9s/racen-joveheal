@@ -180,6 +180,8 @@ def api_chat():
     
     ensure_session_exists(session_id, channel="web", user_id=user_id)
     
+    last_topic_summary = None
+    
     if session_id not in conversation_histories:
         conversation_histories[session_id] = []
         
@@ -189,11 +191,21 @@ def api_chat():
                 for conv in past_history:
                     conversation_histories[session_id].append({"role": "user", "content": conv['question']})
                     conversation_histories[session_id].append({"role": "assistant", "content": conv['answer']})
+                
+                if past_history:
+                    last_questions = [conv['question'] for conv in past_history[-3:]]
+                    last_topic_summary = "; ".join(last_questions)
     
     if conversation_history and not conversation_histories[session_id]:
         conversation_histories[session_id] = conversation_history
     
-    result = generate_response(message, conversation_histories[session_id])
+    result = generate_response(
+        message, 
+        conversation_histories[session_id],
+        user_name=user_name,
+        is_returning_user=is_returning_user,
+        last_topic_summary=last_topic_summary
+    )
     
     response_text = result.get("response", "")
     

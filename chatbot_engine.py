@@ -130,7 +130,10 @@ def build_context_aware_query(user_message: str, conversation_history: List[dict
 def generate_response(
     user_message: str,
     conversation_history: List[dict] = None,
-    n_context_docs: int = 5
+    n_context_docs: int = 5,
+    user_name: str = None,
+    is_returning_user: bool = False,
+    last_topic_summary: str = None
 ) -> dict:
     """
     Generate a response to the user's message using RAG.
@@ -139,6 +142,9 @@ def generate_response(
         user_message: The user's question
         conversation_history: Previous messages in the conversation
         n_context_docs: Number of context documents to retrieve
+        user_name: User's first name for personalized greeting
+        is_returning_user: Whether this is a returning user
+        last_topic_summary: Summary of user's last conversation topic (for returning users)
     
     Returns:
         dict with 'response', 'sources', and 'safety_triggered' keys
@@ -168,7 +174,16 @@ def generate_response(
     
     system_prompt = get_system_prompt()
     
+    personalization_context = ""
+    if user_name:
+        personalization_context = f"\nUSER CONTEXT:\nThe user's name is {user_name}. Address them by name naturally in your responses (e.g., 'Hi {user_name}!' or 'That's a great question, {user_name}.')."
+        if is_returning_user and last_topic_summary:
+            personalization_context += f"\nThis is a returning user. Last time you discussed: {last_topic_summary}. If appropriate, acknowledge their return warmly and reference what you discussed before."
+        elif is_returning_user:
+            personalization_context += f"\nThis is a returning user. Welcome them back warmly."
+    
     augmented_system_prompt = f"""{system_prompt}
+{personalization_context}
 
 KNOWLEDGE BASE CONTEXT:
 The following information is from JoveHeal's official website and documents. Use this to answer the user's question accurately:

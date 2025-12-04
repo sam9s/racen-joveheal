@@ -24,9 +24,12 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (status === 'loading') {
+      return;
+    }
     if (status === 'authenticated' && session?.user?.email) {
       setSessionId(`user_${session.user.email}`);
-    } else {
+    } else if (status === 'unauthenticated') {
       setSessionId(`guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
     }
   }, [status, session]);
