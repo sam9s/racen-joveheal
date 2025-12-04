@@ -18,9 +18,9 @@ from channel_handlers import (
     process_channel_message,
     get_channel_status
 )
-from chatbot_engine import generate_response
+from chatbot_engine import generate_response, generate_conversation_summary
 from conversation_logger import log_feedback, log_conversation, ensure_session_exists
-from database import get_or_create_user, get_user_conversation_history
+from database import get_or_create_user, get_user_conversation_history, get_conversation_summary, upsert_conversation_summary
 from knowledge_base import initialize_knowledge_base, get_knowledge_base_stats
 
 app = Flask(__name__)
@@ -181,20 +181,29 @@ def api_chat():
     ensure_session_exists(session_id, channel="web", user_id=user_id)
     
     last_topic_summary = None
+    stored_summary = None
     
     if session_id not in conversation_histories:
         conversation_histories[session_id] = []
         
         if is_returning_user and user_id:
+            stored_summary = get_conversation_summary(user_id)
+            
             past_history = get_user_conversation_history(user_id, limit=50)
             if past_history:
                 for conv in past_history:
                     conversation_histories[session_id].append({"role": "user", "content": conv['question']})
                     conversation_histories[session_id].append({"role": "assistant", "content": conv['answer']})
-                
-                if past_history:
-                    last_questions = [conv['question'] for conv in past_history[-3:]]
-                    last_topic_summary = "; ".join(last_questions)
+            
+            if stored_summary:
+                summary_parts = []
+                if stored_summary.get('emotional_themes'):
+                    summary_parts.append(f"You shared: {stored_summary['emotional_themes']}")
+                if stored_summary.get('recommended_programs'):
+                    summary_parts.append(f"Programs discussed: {stored_summary['recommended_programs']}")
+                if stored_summary.get('last_topics'):
+                    summary_parts.append(f"Topic: {stored_summary['last_topics']}")
+                last_topic_summary = " | ".join(summary_parts) if summary_parts else None
     
     if conversation_history and not conversation_histories[session_id]:
         conversation_histories[session_id] = conversation_history
@@ -224,6 +233,20 @@ def api_chat():
     
     if len(conversation_histories[session_id]) > 100:
         conversation_histories[session_id] = conversation_histories[session_id][-100:]
+    
+    if user_id and len(conversation_histories[session_id]) >= 4:
+        try:
+            summary = generate_conversation_summary(conversation_histories[session_id])
+            if summary:
+                upsert_conversation_summary(
+                    user_id=user_id,
+                    emotional_themes=summary.get('emotional_themes'),
+                    recommended_programs=summary.get('recommended_programs'),
+                    last_topics=summary.get('last_topics'),
+                    conversation_status=summary.get('conversation_status')
+                )
+        except Exception as e:
+            print(f"Error updating conversation summary: {e}")
     
     return jsonify({
         "response": result.get("response", "I apologize, but I encountered an issue. Please try again."),
