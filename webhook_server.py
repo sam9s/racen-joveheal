@@ -149,15 +149,15 @@ def api_chat():
         image = verified_user.get("image")
         
         if email:
-            user, created = get_or_create_user(
+            user_data, created = get_or_create_user(
                 channel="google",
                 external_id=email,
                 email=email,
                 display_name=name,
                 profile_image=image
             )
-            if user:
-                user_id = user.id
+            if user_data:
+                user_id = user_data['id']
                 user_name = name.split()[0] if name else None
                 is_returning_user = not created and session_id not in conversation_histories
     

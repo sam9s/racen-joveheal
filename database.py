@@ -140,7 +140,7 @@ def get_or_create_user(channel: str, external_id: str, email: str = None,
                        display_name: str = None, profile_image: str = None):
     """
     Get existing user or create new one.
-    Returns (user, created) tuple.
+    Returns (user_data, created) tuple where user_data is a dict with id, display_name, etc.
     """
     with get_db_session() as db:
         if db is None:
@@ -160,7 +160,12 @@ def get_or_create_user(channel: str, external_id: str, email: str = None,
             if profile_image:
                 user.profile_image = profile_image
             db.commit()
-            return user, False
+            user_data = {
+                'id': user.id,
+                'display_name': user.display_name,
+                'email': user.email
+            }
+            return user_data, False
         
         user = UserAccount(
             channel=channel,
@@ -172,7 +177,12 @@ def get_or_create_user(channel: str, external_id: str, email: str = None,
         db.add(user)
         db.commit()
         db.refresh(user)
-        return user, True
+        user_data = {
+            'id': user.id,
+            'display_name': user.display_name,
+            'email': user.email
+        }
+        return user_data, True
 
 
 def get_user_by_email(email: str):
