@@ -90,38 +90,55 @@ def build_context_aware_query(user_message: str, conversation_history: List[dict
     """
     Build a search query that includes context from conversation history.
     This helps with follow-up questions like "tell me more about that program".
+    
+    Uses robust detection that handles:
+    - Typos (e.g., "programm", "progam")
+    - Various follow-up patterns
+    - Short queries that reference previous context
     """
     if not conversation_history:
         return user_message
     
-    program_keywords = [
+    program_names = [
         "Balance Mastery", "Inner Mastery Lounge", "Elevate 360",
         "Relationship Healing", "Career Healing", "Beyond the Hustle",
         "Inner Reset", "Shed & Shine", "Shed and Shine",
-        "Healing Sessions", "coaching", "program"
+        "Healing Sessions", "Healing Circle", "Meta-U", 
+        "Money and Abundance", "1:1 Private Coaching"
     ]
     
-    pronouns_indicating_reference = [
-        "this program", "that program", "this", "that", "it",
+    message_lower = user_message.lower()
+    
+    follow_up_indicators = [
+        "this", "that", "it", "the program", "the course",
         "more details", "more information", "tell me more",
-        "details on", "about it", "learn more"
+        "details", "about it", "learn more", "know more",
+        "give me", "share more", "explain", "what is it",
+        "how does it", "how much", "price", "cost", "duration",
+        "sign up", "enroll", "join", "register"
     ]
     
-    has_pronoun_reference = any(phrase.lower() in user_message.lower() for phrase in pronouns_indicating_reference)
+    program_typo_patterns = ["program", "progam", "programm", "programme", "prog"]
     
-    if not has_pronoun_reference:
+    has_follow_up = any(phrase in message_lower for phrase in follow_up_indicators)
+    has_program_reference = any(pattern in message_lower for pattern in program_typo_patterns)
+    is_short_query = len(user_message.split()) <= 8
+    
+    should_add_context = has_follow_up or (has_program_reference and is_short_query)
+    
+    if not should_add_context:
         return user_message
     
-    recent_context = []
-    for msg in reversed(conversation_history[-4:]):
+    recent_programs = []
+    for msg in reversed(conversation_history[-6:]):
         content = msg.get("content", "")
-        for keyword in program_keywords:
-            if keyword.lower() in content.lower():
-                if keyword not in recent_context:
-                    recent_context.append(keyword)
+        for program in program_names:
+            if program.lower() in content.lower():
+                if program not in recent_programs:
+                    recent_programs.append(program)
     
-    if recent_context:
-        context_str = " ".join(recent_context[:3])
+    if recent_programs:
+        context_str = " ".join(recent_programs[:3])
         return f"{user_message} {context_str}"
     
     return user_message
