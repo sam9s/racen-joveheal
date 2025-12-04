@@ -65,6 +65,13 @@ RACEN provides personalized experiences for signed-in users:
 - **New user introductions**: First-time users get a friendly intro explaining who RACEN is
 - **Session ID timing fix**: Frontend waits for auth check before generating session ID, ensuring logged-in users aren't treated as guests
 
+### Smart Conversation Summaries (Dec 2025)
+RACEN generates and stores structured conversation summaries for returning users:
+- **LLM-powered summarization**: After 2+ exchanges, generates summary with emotional_themes, recommended_programs, last_topics
+- **Database storage**: Summaries stored in `conversation_summaries` table per user
+- **Contextual welcome-back**: Returning users get specific references like "I remember you mentioned feeling disconnected from society and stressed about your career - I suggested Beyond the Hustle for you"
+- **Implementation**: `generate_conversation_summary()` in chatbot_engine.py, stored via `upsert_conversation_summary()` in database.py
+
 ### Knowledge Base
 - PDF document upload and processing
 - Text file ingestion with validation
