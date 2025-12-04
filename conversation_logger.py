@@ -51,8 +51,8 @@ def save_conversation_logs_to_file(logs: list):
         json.dump(logs, f, indent=2, ensure_ascii=False, default=str)
 
 
-def ensure_session_exists(session_id: str, channel: str = "web"):
-    """Ensure a chat session exists in the database."""
+def ensure_session_exists(session_id: str, channel: str = "web", user_id: int = None):
+    """Ensure a chat session exists in the database and optionally link to user."""
     if not is_database_available():
         return
     
@@ -62,10 +62,12 @@ def ensure_session_exists(session_id: str, channel: str = "web"):
         
         existing = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
         if not existing:
-            new_session = ChatSession(session_id=session_id, channel=channel)
+            new_session = ChatSession(session_id=session_id, channel=channel, user_id=user_id)
             db.add(new_session)
         else:
             existing.last_activity = datetime.utcnow()
+            if user_id and not existing.user_id:
+                existing.user_id = user_id
 
 
 def log_conversation(

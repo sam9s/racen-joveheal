@@ -19,7 +19,7 @@ from channel_handlers import (
     get_channel_status
 )
 from chatbot_engine import generate_response
-from conversation_logger import log_feedback
+from conversation_logger import log_feedback, log_conversation, ensure_session_exists
 from database import get_or_create_user, get_user_conversation_history
 
 app = Flask(__name__)
@@ -161,13 +161,15 @@ def api_chat():
                 user_name = name.split()[0] if name else None
                 is_returning_user = not created and session_id not in conversation_histories
     
+    ensure_session_exists(session_id, channel="web", user_id=user_id)
+    
     if session_id not in conversation_histories:
         conversation_histories[session_id] = []
         
         if is_returning_user and user_id:
-            past_history = get_user_conversation_history(user_id, limit=10)
+            past_history = get_user_conversation_history(user_id, limit=50)
             if past_history:
-                for conv in past_history[-5:]:
+                for conv in past_history:
                     conversation_histories[session_id].append({"role": "user", "content": conv['question']})
                     conversation_histories[session_id].append({"role": "assistant", "content": conv['answer']})
     
@@ -176,11 +178,23 @@ def api_chat():
     
     result = generate_response(message, conversation_histories[session_id])
     
-    conversation_histories[session_id].append({"role": "user", "content": message})
-    conversation_histories[session_id].append({"role": "assistant", "content": result.get("response", "")})
+    response_text = result.get("response", "")
     
-    if len(conversation_histories[session_id]) > 20:
-        conversation_histories[session_id] = conversation_histories[session_id][-20:]
+    log_conversation(
+        session_id=session_id,
+        user_question=message,
+        bot_answer=response_text,
+        safety_flagged=result.get("safety_triggered", False),
+        safety_category=result.get("safety_category"),
+        sources=result.get("sources", []),
+        channel="web"
+    )
+    
+    conversation_histories[session_id].append({"role": "user", "content": message})
+    conversation_histories[session_id].append({"role": "assistant", "content": response_text})
+    
+    if len(conversation_histories[session_id]) > 100:
+        conversation_histories[session_id] = conversation_histories[session_id][-100:]
     
     return jsonify({
         "response": result.get("response", "I apologize, but I encountered an issue. Please try again."),
