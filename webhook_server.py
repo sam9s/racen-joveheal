@@ -21,9 +21,26 @@ from channel_handlers import (
 from chatbot_engine import generate_response
 from conversation_logger import log_feedback, log_conversation, ensure_session_exists
 from database import get_or_create_user, get_user_conversation_history
+from knowledge_base import initialize_knowledge_base, get_knowledge_base_stats
 
 app = Flask(__name__)
 CORS(app)
+
+def init_knowledge_base_on_startup():
+    """Initialize knowledge base on startup if empty (for autoscale cold starts)."""
+    try:
+        stats = get_knowledge_base_stats()
+        if stats["total_chunks"] == 0:
+            print("[Startup] Knowledge base is empty, rebuilding from website...")
+            initialize_knowledge_base(force_refresh=False, enable_web_scrape=True)
+            stats = get_knowledge_base_stats()
+            print(f"[Startup] Knowledge base rebuilt with {stats['total_chunks']} chunks")
+        else:
+            print(f"[Startup] Knowledge base ready with {stats['total_chunks']} chunks")
+    except Exception as e:
+        print(f"[Startup] Warning: Failed to initialize knowledge base: {e}")
+
+init_knowledge_base_on_startup()
 
 conversation_histories = {}
 
