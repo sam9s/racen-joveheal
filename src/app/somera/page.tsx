@@ -4,6 +4,29 @@ import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { useTheme } from '@/components/ThemeProvider';
 import Image from 'next/image';
 
+function renderMessageWithLinks(content: string): React.ReactNode {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = content.split(urlRegex);
+  
+  return parts.map((part, index) => {
+    if (urlRegex.test(part)) {
+      urlRegex.lastIndex = 0;
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 break-all"
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -120,7 +143,7 @@ function SomeraMessage({ message }: { message: Message }) {
         }`}
       >
         <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed">
-          {message.content}
+          {renderMessageWithLinks(message.content)}
         </div>
         
         {message.sources && message.sources.length > 0 && (
