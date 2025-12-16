@@ -137,6 +137,216 @@
         "wellness",
         "relationship"
       ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - coaching_framework",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "not_enough",
+        "overwhelm_exhaustion"
+      ],
+      "root_causes": [
+        "conditional love",
+        "external validation"
+      ],
+      "pillars": [
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - blueprint_concept",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "not_enough",
+        "rejection",
+        "fear_of_judgment"
+      ],
+      "root_causes": [
+        "childhood conditioning",
+        "protective patterns"
+      ],
+      "pillars": [
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - time_patterns",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "overwhelm_exhaustion",
+        "control_perfectionism"
+      ],
+      "root_causes": [
+        "duty conditioning",
+        "self-neglect patterns"
+      ],
+      "pillars": [
+        "wellness",
+        "relationship",
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - money_patterns",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "not_enough",
+        "unworthiness"
+      ],
+      "root_causes": [
+        "parental messaging",
+        "scarcity conditioning"
+      ],
+      "pillars": [
+        "wellness",
+        "relationship",
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - body_mind_connection",
+      "topic": "wellness",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "lack_of_support",
+        "unworthiness"
+      ],
+      "root_causes": [
+        "father wound",
+        "feeling unsupported"
+      ],
+      "pillars": [
+        "wellness",
+        "relationship",
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - power_patterns",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "rejection",
+        "control_perfectionism",
+        "not_enough"
+      ],
+      "root_causes": [
+        "loss of parent",
+        "hyper-responsibility",
+        "early independence"
+      ],
+      "pillars": [
+        "wellness",
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - perspective_reframe",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "not_enough",
+        "unworthiness"
+      ],
+      "root_causes": [
+        "perfectionism",
+        "self-criticism"
+      ],
+      "pillars": [
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - approval_patterns",
+      "topic": "relationship",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "unworthiness",
+        "not_enough",
+        "rejection"
+      ],
+      "root_causes": [
+        "critical parenting",
+        "conditional love",
+        "external validation"
+      ],
+      "pillars": [
+        "relationship",
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - self_worth",
+      "topic": "relationship",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "unworthiness",
+        "boundary_issues"
+      ],
+      "root_causes": [
+        "self-blame pattern",
+        "taking others' responsibility"
+      ],
+      "pillars": [
+        "relationship"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - cross_pillar_awareness",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "rejection",
+        "not_enough",
+        "unworthiness",
+        "boundary_issues"
+      ],
+      "root_causes": [
+        "childhood patterns",
+        "family dynamics"
+      ],
+      "pillars": [
+        "wellness",
+        "relationship",
+        "career"
+      ]
+    },
+    {
+      "video_title": "1-to-1 Educational Concepts - referral_boundaries",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 1,
+      "session_type": "one_on_one",
+      "emotional_patterns": [],
+      "root_causes": [],
+      "pillars": [
+        "wellness",
+        "career"
+      ]
     }
   ]
 }

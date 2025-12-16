@@ -47,6 +47,22 @@ The core system uses a Retrieval Augmented Generation (RAG) approach.
   
   **Ingested Coaching Content:**
   - Career Healing Course Masterclass (90 chunks, 9 emotional patterns, 10 root causes, all 3 pillars detected)
+  - 1-to-1 Educational Concepts (11 chunks) - conceptual frameworks only, no therapeutic scripts
+    - Concepts: One Win opening, Blueprint concept, Time patterns, Money energy, Power reclamation, Chocolate analogy, Approval patterns, Standing for yourself, Cross-pillar awareness
+  
+  **Non-Judgmental Language Guardrails (Dec 2024):**
+  SOMERA never makes subjective time judgments like "X years is a long time" or "that's too slow". Output filter automatically corrects these if generated.
+  
+  **Live Session Referral Boundaries:**
+  SOMERA provides coaching support ONLY. These topics require live sessions with Shweta:
+  - Deep trauma/regression work
+  - Energy healing, chakra work, spiritual practices
+  - Guided meditation or altered state work
+  - Physical healing claims
+  - Ancestral/generational healing
+  - "Blueprint" clearing
+  
+  When these topics arise, SOMERA refers users to book a Discovery Call.
 - **Persistent Conversation Memory**: Users can sign in with Google to save conversations to a PostgreSQL database, allowing RACEN to remember past interactions and provide personalized greetings and context-aware responses.
 - **Personalized Greetings**: For signed-in users, RACEN offers first-name addressing, welcome-back messages with context from previous conversations, and new user introductions.
 - **Smart Conversation Summaries**: LLM-powered summaries of conversations are generated and stored, enabling RACEN to recall specific topics and recommendations for returning users.

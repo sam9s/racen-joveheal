@@ -251,13 +251,17 @@ def check_for_extreme_distress(message: str) -> Tuple[bool, str]:
     return False, ""
 
 
-def apply_safety_filters(message: str) -> Tuple[bool, str]:
+def apply_safety_filters(message: str, is_somera: bool = False) -> Tuple[bool, str]:
     """
     Apply all safety filters to the message.
     Returns (should_redirect, redirect_response)
     
     If should_redirect is True, the chatbot should return the redirect_response
     instead of processing the query through the RAG system.
+    
+    Args:
+        message: The user's message
+        is_somera: If True, also check for live session referral topics
     """
     is_crisis, crisis_response = check_for_crisis_content(message)
     if is_crisis:
@@ -278,6 +282,11 @@ def apply_safety_filters(message: str) -> Tuple[bool, str]:
     is_medical, medical_response = check_for_medical_content(message)
     if is_medical:
         return True, medical_response
+    
+    if is_somera:
+        needs_referral, referral_response = check_for_live_session_topics(message)
+        if needs_referral:
+            return True, referral_response
     
     return False, ""
 
@@ -766,7 +775,7 @@ User: We just don't communicate anymore
 SOMERA: That disconnect — it can feel so isolating, even when you're living under the same roof. I'm curious, how long have you been feeling this way? And has there been a moment recently that really stood out to you?
 
 User: It's been like this for 2 years now. Last week he just walked out during dinner.
-SOMERA: Two years is a long time to carry that weight 🤗. That moment at dinner — it sounds like it really hurt. I'm sensing there might be a deeper longing underneath all this. What do you think you're really missing in the relationship?
+SOMERA: Carrying that for 2 years takes a lot out of you 🤗. That moment at dinner — it sounds like it really hurt. I'm sensing there might be a deeper longing underneath all this. What do you think you're really missing in the relationship?
 
 (Notice: NO solutions given — just listening, probing, helping them discover their own insights)
 
@@ -798,6 +807,54 @@ SOMERA: "Try meditation! Here are some breathing exercises that can help..."
 
 For crisis situations (self-harm, suicidal thoughts, abuse), respond with compassion and refer to professionals:
 "I can hear how much pain you're in right now, and I want you to know that what you're feeling matters. This is beyond what I can support you with here — please reach out to a crisis helpline or mental health professional who can give you the care you deserve. You don't have to face this alone."
+
+=== NON-JUDGMENTAL LANGUAGE GUARDRAILS ===
+
+NEVER make subjective time judgments. These phrases are FORBIDDEN:
+- "X years is a long time"
+- "This will take very long"
+- "That's a huge amount of time"
+- "It's too slow"
+- "It will take forever"
+- "That's been going on too long"
+- "You've waited too long"
+- "That's a lot of years"
+
+INSTEAD, acknowledge the duration without judgment:
+- "Carrying that for 2 years takes a lot out of you"
+- "Having dealt with this since childhood..."
+- "That's quite a journey you've been on"
+- "You've been navigating this for a while now"
+
+NEVER be judgmental about:
+- Time durations (years, months, how long something took)
+- Amounts (money, effort, attempts)
+- Choices they made (even if they seem "obvious" to fix)
+- Speed of progress (everyone's timeline is different)
+
+=== LIVE SESSION REFERRAL BOUNDARIES ===
+
+SOMERA provides COACHING SUPPORT only — the following require live sessions with Shweta:
+
+REFER TO LIVE SESSIONS when the conversation involves:
+- Deep trauma work or regression to specific memories
+- Energy healing, chakra work, or spiritual practices
+- Guided meditation or altered state work
+- Physical healing claims (back pain, body symptoms)
+- Ancestral healing or generational patterns
+- "Blueprint" clearing or belief reprogramming
+- Any work that requires Shweta's intuitive guidance
+
+HOW TO REFER:
+"This is something Shweta works on deeply in one-to-one sessions. Would you like to explore working with her directly? You can book a complimentary Discovery Call here: https://bit.ly/apply-for-discovery"
+
+WHAT SOMERA CAN DO:
+- Listen and provide empathetic support
+- Help users understand their patterns and root causes conceptually
+- Share educational frameworks (the 4 steps, three pillars, blueprint concept)
+- Ask coaching questions that help users gain clarity
+- Normalize their experiences and reduce shame
+- Guide them toward the decision to seek deeper work
 
 === YOUR IDENTITY ===
 
@@ -850,6 +907,65 @@ UNSAFE_ADVICE_PATTERNS = [
     r"(you have|sounds like|appears to be|i think you have).{0,20}(depression|anxiety|disorder|condition)",
 ]
 
+JUDGMENTAL_TIME_PATTERNS = [
+    r"\d+\s*years?\s+is\s+(a\s+)?(long|such a long|very long|really long)",
+    r"(that'?s|it'?s|this is)\s+(a\s+)?(long|huge|enormous)\s+(amount of\s+)?time",
+    r"\b(will|would|going to)\s+take\s+(very\s+)?(long|forever|too long|ages)\b",
+    r"\b(it'?s|that'?s)\s+too\s+slow\b",
+    r"\b(you'?ve|you have)\s+(waited|been waiting)\s+too\s+long\b",
+    r"(that'?s|it'?s)\s+(been\s+)?going\s+on\s+too\s+long",
+    r"(that'?s|it'?s)\s+a\s+lot\s+of\s+(years|time|months)",
+    r"\b(such|so)\s+a\s+long\s+time\b",
+    r"\bdecades?\s+(is|are)\s+(a\s+)?(long|forever)\b",
+    r"\bthis\s+took\s+too\s+long\b",
+    r"\b(way|far)\s+too\s+long\b",
+    r"\btook\s+ages\b",
+    r"\bbeen\s+ages\b",
+    r"\bforever\s+since\b",
+    r"\btoo\s+many\s+years\b",
+    r"\bdragged\s+on\s+(forever|too long)\b",
+    r"\bso,?\s+so\s+long\b",
+]
+
+LIVE_SESSION_REFERRAL_PATTERNS = [
+    r"\benergy[\s-]?healing\b",
+    r"\bchakra\b",
+    r"\btheta[\s-]?healing\b",
+    r"\bhypnos[ie]s\b",
+    r"\bhypnotherapy\b",
+    r"\bregression\s*(therapy|work)?\b",
+    r"\bpast[\s-]?life\b",
+    r"\bpast[\s-]?lives\b",
+    r"\bancestral[\s-]?healing\b",
+    r"\bgenerational[\s-]?healing\b",
+    r"\benergy[\s-]?scan\b",
+    r"\benergy[\s-]?work\b",
+    r"\bblueprint[\s-]?clearing\b",
+    r"\bclear\s+(my|the)\s+blueprint\b",
+    r"\bguided[\s-]?meditation\b",
+    r"\baltered[\s-]?state\b",
+    r"\balpha[\s-]?state\b",
+    r"\btheta[\s-]?state\b",
+    r"\bphysical[\s-]?healing\b",
+    r"\bheal\s+(my|the)\s+(pain|back|body)\b",
+    r"\bcreator\s+of\s+all\b",
+    r"\bdivine[\s-]?light\b",
+    r"\bspirit[\s-]?guide\b",
+    r"\bspiritual[\s-]?healing\b",
+    r"\bchakra[\s-]?(balancing|clearing|work)\b",
+    r"\baura\s+(reading|healing|clearing)\b",
+    r"\benergy[\s-]?body\b",
+    r"\binner[\s-]?child\s+work\b",
+    r"\btrauma[\s-]?release\b",
+    r"\bshadow[\s-]?work\b",
+]
+
+LIVE_SESSION_REFERRAL_RESPONSE = """I can sense this is something that would really benefit from Shweta's deeper work 💙. What you're describing - that kind of healing - is something she works on powerfully in her one-to-one sessions.
+
+Would you like to explore working with her directly? You can book a complimentary 15-minute Discovery Call here: https://bit.ly/apply-for-discovery
+
+In the meantime, I'm here to listen and support you with what you're going through."""
+
 
 def _split_into_sentences(text: str) -> list:
     """Split text into sentences for sentence-scoped analysis."""
@@ -879,6 +995,83 @@ def _sentence_matches_unsafe_advice(sentence: str) -> bool:
     return any(re.search(pattern, sentence_lower) for pattern in UNSAFE_ADVICE_PATTERNS)
 
 
+def _check_judgmental_time_patterns(text: str) -> bool:
+    """Check if text contains judgmental time patterns."""
+    import re
+    text_lower = text.lower()
+    return any(re.search(pattern, text_lower) for pattern in JUDGMENTAL_TIME_PATTERNS)
+
+
+def check_for_live_session_topics(message: str) -> Tuple[bool, str]:
+    """
+    Check if the message contains topics that require live sessions with Shweta.
+    These include energy healing, chakra work, regression, etc.
+    Uses regex with word boundaries for accurate matching.
+    Returns (requires_referral, referral_response)
+    """
+    import re
+    message_lower = message.lower()
+    
+    for pattern in LIVE_SESSION_REFERRAL_PATTERNS:
+        if re.search(pattern, message_lower):
+            return True, LIVE_SESSION_REFERRAL_RESPONSE
+    
+    return False, ""
+
+
+def _fix_judgmental_time_phrases(response: str) -> str:
+    """
+    Attempt to fix common judgmental time phrases with non-judgmental alternatives.
+    Preserves sentence structure and capitalization where possible.
+    Returns the corrected response.
+    """
+    import re
+    result = response
+    
+    def preserve_case(original_match, replacement):
+        """Preserve capitalization of first letter if original was capitalized."""
+        if original_match and original_match[0].isupper():
+            return replacement[0].upper() + replacement[1:]
+        return replacement
+    
+    replacements = [
+        (r"(\d+)\s*years?\s+is\s+(a\s+)?(long|such a long|very long|really long)\s+time", 
+         lambda m: f"Carrying that for {m.group(1)} years takes a lot out of you"),
+        (r"(That'?s|It'?s|This is|that'?s|it'?s|this is)\s+(a\s+)?(long|huge|enormous)\s+(amount\s+of\s+)?time",
+         lambda m: preserve_case(m.group(0), "that's quite a journey you've been on")),
+        (r"\b(It\s+|it\s+)?(will|would|Will|Would|going to|Going to)\s+take\s+(very\s+)?(long|forever|too long|ages)\b",
+         lambda m: preserve_case(m.group(0), "this is a process that unfolds at its own pace")),
+        (r"\b(It'?s|That'?s|it'?s|that'?s)\s+too\s+slow\b",
+         lambda m: preserve_case(m.group(0), "everyone moves at their own pace")),
+        (r"\b(You'?ve|You\s+have|you'?ve|you\s+have)\s+(waited|been\s+waiting)\s+too\s+long\b",
+         lambda m: preserve_case(m.group(0), "you've been patient through this")),
+        (r"\b(took|Took)\s+ages\b",
+         lambda m: preserve_case(m.group(0), "took its time")),
+        (r"\b(been|Been)\s+ages\b",
+         lambda m: preserve_case(m.group(0), "been a while")),
+        (r"\btoo\s+many\s+years\s+(have\s+)?",
+         "quite some time has "),
+        (r"\b(dragged|Dragged)\s+on\s+(forever|too long)\b",
+         lambda m: preserve_case(m.group(0), "continued for a while")),
+        (r"\bso,?\s+so\s+long\b",
+         "quite some time"),
+        (r"\b(this\s+)?took\s+too\s+long\b",
+         "took its time"),
+        (r"\b(way|far)\s+too\s+long\b",
+         "quite a while"),
+        (r"\b(It'?s|That'?s|it'?s|that'?s)\s+too\s+slow\s+for",
+         lambda m: preserve_case(m.group(0), "everyone moves at their own pace,") + " and for"),
+    ]
+    
+    for pattern, replacement in replacements:
+        if callable(replacement):
+            result = re.sub(pattern, replacement, result)
+        else:
+            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+    
+    return result
+
+
 def filter_response_for_safety(response: str) -> Tuple[str, bool]:
     """
     Filter LLM response for safety concerns using sentence-scoped analysis.
@@ -889,7 +1082,8 @@ def filter_response_for_safety(response: str) -> Tuple[str, bool]:
     2. For each sentence with a protected keyword:
        - If it matches a SAFE_REDIRECT_PATTERN → ALLOW (professional referral)
        - If it matches an UNSAFE_ADVICE_PATTERN → BLOCK (giving advice)
-    3. Check global OUTPUT_FORBIDDEN_PATTERNS as final catch
+    3. Check and fix judgmental time patterns
+    4. Check global OUTPUT_FORBIDDEN_PATTERNS as final catch
     """
     import re
     
@@ -901,6 +1095,9 @@ def filter_response_for_safety(response: str) -> Tuple[str, bool]:
                 continue
             if _sentence_matches_unsafe_advice(sentence):
                 return OUTPUT_SAFETY_REDIRECT, True
+    
+    if _check_judgmental_time_patterns(response):
+        response = _fix_judgmental_time_phrases(response)
     
     response_lower = response.lower()
     for pattern in OUTPUT_FORBIDDEN_PATTERNS:

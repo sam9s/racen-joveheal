@@ -214,7 +214,7 @@ def generate_somera_response(
             "error": "openai_not_configured"
         }
     
-    should_redirect, redirect_response = apply_safety_filters(user_message)
+    should_redirect, redirect_response = apply_safety_filters(user_message, is_somera=True)
     if should_redirect:
         return {
             "response": redirect_response,
@@ -348,7 +348,7 @@ def generate_somera_response_stream(
         }
         return
     
-    should_redirect, redirect_response = apply_safety_filters(user_message)
+    should_redirect, redirect_response = apply_safety_filters(user_message, is_somera=True)
     if should_redirect:
         yield {
             "type": "content",
