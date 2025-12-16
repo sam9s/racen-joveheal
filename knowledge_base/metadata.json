@@ -102,6 +102,41 @@
       "speaker": "Shweta",
       "chunks": 7,
       "youtube_url": "https://www.youtube.com/watch?v=GJbYokkNQyg"
+    },
+    {
+      "video_title": "Career Healing Course - Masterclass",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 90,
+      "session_type": "masterclass",
+      "emotional_patterns": [
+        "not_enough",
+        "fear_of_judgment",
+        "rejection",
+        "seeking_validation",
+        "boundary_issues",
+        "stuck_patterns",
+        "parental_resentment",
+        "overwhelm_exhaustion",
+        "misalignment"
+      ],
+      "root_causes": [
+        "unresolved_parental_resentment",
+        "childhood_comparison",
+        "conditional_love",
+        "emotional_neglect",
+        "critical_controlling_parents",
+        "fear_of_speaking_up",
+        "not_feeling_heard",
+        "seeking_external_validation",
+        "overworking_pattern",
+        "blueprint_limiting_beliefs"
+      ],
+      "pillars": [
+        "career",
+        "wellness",
+        "relationship"
+      ]
     }
   ]
 }

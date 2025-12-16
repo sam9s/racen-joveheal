@@ -11,11 +11,17 @@ Unlike Jovee (informational), SOMERA focuses on emotional support and coaching g
 import os
 from typing import List, Generator
 
-from knowledge_base import search_coaching_content
+from knowledge_base import search_coaching_content, search_coaching_content_enhanced
 from safety_guardrails import (
     get_somera_system_prompt,
     apply_safety_filters,
     filter_response_for_safety
+)
+from emotional_patterns import (
+    identify_emotional_patterns,
+    identify_pillars,
+    get_cross_pillar_awareness_context,
+    build_enhanced_search_query
 )
 
 _openai_client = None
@@ -129,6 +135,53 @@ def build_contextual_search_query(user_message: str, conversation_history: List[
     contextual_query = f"{user_message} (context: {context_summary})"
     
     return contextual_query
+
+
+def get_enhanced_coaching_context(user_message: str, conversation_history: List[dict], n_context_docs: int = 5) -> dict:
+    """
+    Get coaching context with emotional pattern awareness for cross-pillar retrieval.
+    
+    Returns:
+        Dict with:
+        - documents: Retrieved coaching documents
+        - patterns: Identified emotional patterns
+        - pillars: Identified life pillars
+        - cross_pillar_context: Cross-pillar awareness context
+    """
+    all_text = user_message
+    if conversation_history:
+        for msg in conversation_history[-6:]:
+            if msg.get("role") == "user":
+                all_text += " " + msg.get("content", "")
+    
+    patterns = identify_emotional_patterns(all_text)
+    pillars = identify_pillars(all_text)
+    pattern_ids = [p.pattern_id for p in patterns]
+    
+    contextual_query = build_contextual_search_query(user_message, conversation_history)
+    
+    if pattern_ids:
+        documents = search_coaching_content_enhanced(
+            query=contextual_query,
+            n_results=n_context_docs,
+            emotional_patterns=pattern_ids,
+            pillars=pillars
+        )
+    else:
+        documents = search_coaching_content(contextual_query, n_results=n_context_docs)
+    
+    cross_pillar_context = ""
+    if patterns and pillars:
+        primary_pillar = pillars[0] if pillars else None
+        cross_pillar_context = get_cross_pillar_awareness_context(patterns[:2], primary_pillar)
+    
+    return {
+        "documents": documents,
+        "patterns": patterns,
+        "pattern_ids": pattern_ids,
+        "pillars": pillars,
+        "cross_pillar_context": cross_pillar_context
+    }
 
 
 def generate_somera_response(
@@ -294,9 +347,15 @@ def generate_somera_response_stream(
         relevant_docs = []
         context = ""
         has_relevant_content = False
+        cross_pillar_context = ""
+        detected_patterns = []
+        detected_pillars = []
     else:
-        contextual_query = build_contextual_search_query(user_message, conversation_history)
-        relevant_docs = search_coaching_content(contextual_query, n_results=n_context_docs)
+        enhanced_context = get_enhanced_coaching_context(user_message, conversation_history, n_context_docs)
+        relevant_docs = enhanced_context["documents"]
+        detected_patterns = enhanced_context["patterns"]
+        detected_pillars = enhanced_context["pillars"]
+        cross_pillar_context = enhanced_context["cross_pillar_context"]
         context = format_coaching_context(relevant_docs)
         has_relevant_content = bool(relevant_docs) and context != "No specific coaching content found for this topic."
     
@@ -305,6 +364,22 @@ def generate_somera_response_stream(
     personalization = ""
     if user_name:
         personalization = f"\nThe user's name is {user_name}. Use their name naturally in your response."
+    
+    cross_pillar_awareness = ""
+    if detected_patterns and detected_pillars:
+        pattern_names = [p.name for p in detected_patterns[:2]]
+        cross_pillar_awareness = f"""
+
+=== CROSS-PILLAR AWARENESS ===
+You've detected these emotional patterns: {', '.join(pattern_names)}
+The user is discussing: {', '.join(detected_pillars)}
+
+IMPORTANT: These patterns often show up across ALL life areas (career, relationships, wellness).
+When appropriate, gently probe if they notice similar feelings in other areas:
+- "I'm curious - do you notice this feeling showing up in other parts of your life too?"
+- "Sometimes what we feel at work can be connected to other areas. How is this affecting you elsewhere?"
+
+{cross_pillar_context}"""
     
     if is_simple_greeting:
         augmented_prompt = f"""{system_prompt}
@@ -320,6 +395,7 @@ Do NOT provide any coaching advice yet - just welcome them warmly."""
     elif has_relevant_content:
         augmented_prompt = f"""{system_prompt}
 {personalization}
+{cross_pillar_awareness}
 
 === SHWETA'S COACHING WISDOM ===
 The following is from Shweta's actual coaching content. You MUST base your response on these insights:
@@ -336,6 +412,7 @@ CRITICAL ANTI-HALLUCINATION RULES:
     else:
         augmented_prompt = f"""{system_prompt}
 {personalization}
+{cross_pillar_awareness}
 
 NOTE: I don't have specific coaching content for this topic in my knowledge base. Respond warmly and empathetically, but be honest that you don't have specific coaching guidance. Offer to help them explore related topics or connect with the JoveHeal team."""
 

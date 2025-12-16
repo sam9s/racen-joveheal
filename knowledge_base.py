@@ -5,13 +5,14 @@ This module handles:
 - Document ingestion (web scraping, PDF, text files)
 - Vector storage using ChromaDB
 - Retrieval for RAG queries
+- Enhanced coaching transcript ingestion with emotional pattern tagging
 """
 
 import os
 import json
 import hashlib
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import chromadb
 from chromadb.config import Settings
@@ -398,6 +399,269 @@ def ingest_coaching_transcript(text_content: str, topic: str, video_title: str, 
     
     print(f"Added {chunks_added} chunks from coaching transcript: {video_title} (topic: {topic})")
     return chunks_added
+
+
+def ingest_enhanced_coaching_transcript(
+    text_content: str,
+    video_title: str,
+    primary_pillar: str = None,
+    emotional_patterns: List[str] = None,
+    root_causes: List[str] = None,
+    speaker: str = "Shweta",
+    youtube_url: str = None,
+    session_type: str = "group"
+) -> int:
+    """
+    Ingest a coaching transcript with enhanced emotional pattern metadata.
+    Enables cross-pillar retrieval based on emotional patterns rather than just topic.
+    
+    Args:
+        text_content: The full transcript text
+        video_title: Title of the video/session
+        primary_pillar: Primary pillar (career, relationship, wellness) - optional
+        emotional_patterns: List of emotional pattern IDs from emotional_patterns.py
+        root_causes: List of root cause tags
+        speaker: Speaker name (default: Shweta)
+        youtube_url: YouTube video URL for reference
+        session_type: Type of session (group, one_on_one, masterclass)
+    
+    Returns the number of chunks added.
+    """
+    if not text_content.strip():
+        print(f"No content found in transcript: {video_title}")
+        return 0
+    
+    if not is_valid_text_content(text_content):
+        print(f"Transcript content failed validation: {video_title}")
+        return 0
+    
+    source_name = f"Coaching: {video_title}"
+    chunks = split_text_into_chunks(text_content, source_name)
+    collection = get_or_create_collection()
+    chunks_added = 0
+    
+    patterns_str = ",".join(emotional_patterns) if emotional_patterns else ""
+    root_causes_str = ",".join(root_causes) if root_causes else ""
+    all_pillars = []
+    if primary_pillar:
+        all_pillars.append(primary_pillar.lower())
+    
+    for chunk in chunks:
+        if not is_valid_text_content(chunk["content"], min_printable_ratio=0.90):
+            continue
+        
+        chunk_patterns = detect_patterns_in_chunk(chunk["content"], emotional_patterns or [])
+        chunk_pillars = detect_pillars_in_chunk(chunk["content"])
+        
+        for p in chunk_pillars:
+            if p not in all_pillars:
+                all_pillars.append(p)
+        
+        try:
+            chunk_metadata = {
+                "source": source_name,
+                "type": "coaching_transcript",
+                "topic": primary_pillar.lower() if primary_pillar else "general",
+                "speaker": speaker,
+                "video_title": video_title,
+                "chunk_index": chunk["chunk_index"],
+                "session_type": session_type,
+                "emotional_patterns": patterns_str,
+                "chunk_patterns": ",".join(chunk_patterns),
+                "root_causes": root_causes_str,
+                "pillars": ",".join(all_pillars + chunk_pillars),
+                "primary_pillar": primary_pillar.lower() if primary_pillar else ""
+            }
+            if youtube_url:
+                chunk_metadata["youtube_url"] = youtube_url
+            
+            collection.upsert(
+                ids=[chunk["id"]],
+                documents=[chunk["content"]],
+                metadatas=[chunk_metadata]
+            )
+            chunks_added += 1
+        except Exception as e:
+            print(f"Error adding chunk: {e}")
+    
+    metadata = load_metadata()
+    if "coaching_transcripts" not in metadata:
+        metadata["coaching_transcripts"] = []
+    
+    existing = next((t for t in metadata["coaching_transcripts"] if t["video_title"] == video_title), None)
+    transcript_meta = {
+        "video_title": video_title,
+        "topic": primary_pillar.lower() if primary_pillar else "general",
+        "speaker": speaker,
+        "chunks": chunks_added,
+        "session_type": session_type,
+        "emotional_patterns": emotional_patterns or [],
+        "root_causes": root_causes or [],
+        "pillars": list(set(all_pillars))
+    }
+    if youtube_url:
+        transcript_meta["youtube_url"] = youtube_url
+    
+    if existing:
+        existing.update(transcript_meta)
+    else:
+        metadata["coaching_transcripts"].append(transcript_meta)
+    save_metadata(metadata)
+    
+    print(f"Added {chunks_added} chunks from enhanced coaching transcript: {video_title}")
+    print(f"  - Primary pillar: {primary_pillar or 'general'}")
+    print(f"  - Emotional patterns: {emotional_patterns or []}")
+    print(f"  - All pillars detected: {list(set(all_pillars))}")
+    return chunks_added
+
+
+def detect_patterns_in_chunk(content: str, known_patterns: List[str]) -> List[str]:
+    """Detect which emotional patterns are mentioned in a chunk."""
+    try:
+        from emotional_patterns import EMOTIONAL_PATTERNS
+        content_lower = content.lower()
+        detected = []
+        
+        for pattern_id, pattern in EMOTIONAL_PATTERNS.items():
+            if pattern_id in known_patterns:
+                detected.append(pattern_id)
+                continue
+            
+            for keyword in pattern.keywords[:5]:
+                if keyword in content_lower:
+                    if pattern_id not in detected:
+                        detected.append(pattern_id)
+                    break
+        
+        return detected[:3]
+    except ImportError:
+        return known_patterns[:3] if known_patterns else []
+
+
+def detect_pillars_in_chunk(content: str) -> List[str]:
+    """Detect which life pillars are mentioned in a chunk."""
+    try:
+        from emotional_patterns import PILLAR_KEYWORDS
+        content_lower = content.lower()
+        pillars = []
+        
+        for pillar, keywords in PILLAR_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword in content_lower:
+                    if pillar not in pillars:
+                        pillars.append(pillar)
+                    break
+        
+        return pillars
+    except ImportError:
+        return []
+
+
+def search_coaching_content_enhanced(
+    query: str,
+    n_results: int = 5,
+    emotional_patterns: List[str] = None,
+    pillars: List[str] = None,
+    retry_count: int = 0
+) -> List[dict]:
+    """
+    Enhanced search for coaching content that supports:
+    - Emotional pattern-based retrieval
+    - Cross-pillar search
+    - Combined query results from multiple search strategies
+    
+    Args:
+        query: Search query
+        n_results: Number of results to return
+        emotional_patterns: Optional list of emotional pattern IDs to filter by
+        pillars: Optional list of pillars to include
+        retry_count: Internal retry counter
+    
+    Returns a list of matching documents with metadata, deduplicated.
+    """
+    try:
+        client = get_chroma_client()
+        collection = client.get_or_create_collection(
+            name="joveheal_knowledge",
+            metadata={"description": "JoveHeal website and document knowledge base"}
+        )
+        
+        count = collection.count()
+        if count == 0:
+            return []
+        
+        all_results = []
+        seen_ids = set()
+        
+        base_filter = {"type": "coaching_transcript"}
+        results = collection.query(
+            query_texts=[query],
+            n_results=min(n_results * 2, count),
+            where=base_filter
+        )
+        
+        if results and results.get("documents") and results["documents"][0]:
+            for i, doc in enumerate(results["documents"][0]):
+                doc_id = results["ids"][0][i] if results.get("ids") else f"doc_{i}"
+                if doc_id not in seen_ids:
+                    seen_ids.add(doc_id)
+                    metadata = results["metadatas"][0][i] if results.get("metadatas") else {}
+                    distance = results["distances"][0][i] if results.get("distances") else None
+                    all_results.append({
+                        "content": doc,
+                        "source": metadata.get("source", "Unknown"),
+                        "type": metadata.get("type", "Unknown"),
+                        "topic": metadata.get("topic", "general"),
+                        "speaker": metadata.get("speaker", "Unknown"),
+                        "video_title": metadata.get("video_title", "Unknown"),
+                        "youtube_url": metadata.get("youtube_url"),
+                        "emotional_patterns": metadata.get("emotional_patterns", "").split(",") if metadata.get("emotional_patterns") else [],
+                        "pillars": metadata.get("pillars", "").split(",") if metadata.get("pillars") else [],
+                        "relevance_score": 1 - distance if distance else None,
+                        "id": doc_id
+                    })
+        
+        if emotional_patterns:
+            for pattern in emotional_patterns[:2]:
+                pattern_query = f"{query} {pattern}"
+                pattern_results = collection.query(
+                    query_texts=[pattern_query],
+                    n_results=min(3, count),
+                    where=base_filter
+                )
+                
+                if pattern_results and pattern_results.get("documents") and pattern_results["documents"][0]:
+                    for i, doc in enumerate(pattern_results["documents"][0]):
+                        doc_id = pattern_results["ids"][0][i] if pattern_results.get("ids") else f"pattern_{i}"
+                        if doc_id not in seen_ids:
+                            seen_ids.add(doc_id)
+                            metadata = pattern_results["metadatas"][0][i] if pattern_results.get("metadatas") else {}
+                            distance = pattern_results["distances"][0][i] if pattern_results.get("distances") else None
+                            all_results.append({
+                                "content": doc,
+                                "source": metadata.get("source", "Unknown"),
+                                "type": metadata.get("type", "Unknown"),
+                                "topic": metadata.get("topic", "general"),
+                                "speaker": metadata.get("speaker", "Unknown"),
+                                "video_title": metadata.get("video_title", "Unknown"),
+                                "youtube_url": metadata.get("youtube_url"),
+                                "emotional_patterns": metadata.get("emotional_patterns", "").split(",") if metadata.get("emotional_patterns") else [],
+                                "pillars": metadata.get("pillars", "").split(",") if metadata.get("pillars") else [],
+                                "relevance_score": (1 - distance) * 0.9 if distance else None,
+                                "id": doc_id
+                            })
+        
+        all_results.sort(key=lambda x: x.get("relevance_score") or 0, reverse=True)
+        
+        return all_results[:n_results]
+        
+    except Exception as e:
+        print(f"Error in enhanced coaching search: {e}")
+        if retry_count < 2 and "Error finding id" in str(e):
+            import time
+            time.sleep(0.5)
+            return search_coaching_content_enhanced(query, n_results, emotional_patterns, pillars, retry_count + 1)
+        return search_coaching_content(query, n_results)
 
 
 def search_coaching_content(query: str, n_results: int = 5, topic: str = None, retry_count: int = 0) -> List[dict]:
