@@ -50,8 +50,14 @@ The core system uses a Retrieval Augmented Generation (RAG) approach.
   - 1-to-1 Educational Concepts (11 chunks) - conceptual frameworks only, no therapeutic scripts
     - Concepts: One Win opening, Blueprint concept, Time patterns, Money energy, Power reclamation, Chocolate analogy, Approval patterns, Standing for yourself, Cross-pillar awareness
   
-  **Non-Judgmental Language Guardrails (Dec 2024):**
-  SOMERA never makes subjective time judgments like "X years is a long time" or "that's too slow". Output filter automatically corrects these if generated.
+  **LLM Critic - Dynamic Language Quality Filter (Dec 2024):**
+  Instead of brittle regex patterns, SOMERA now uses an AI-powered "critic" that reviews every response before sending to users. The critic dynamically enforces:
+  - No subjective time judgments ("X years is a long time", "lengthy journey", etc.)
+  - Warm, empathetic tone (not clinical or robotic)
+  - Coaching style (asks questions, not advice-giving)
+  - Non-judgmental language overall
+  
+  The critic uses GPT-4o-mini to understand language nuance and correct any violations. For streaming responses, a "correction" event replaces the displayed text if needed. All corrections are logged to `logs/guardrails/` for monitoring.
   
   **Live Session Referral Boundaries:**
   SOMERA provides coaching support ONLY. These topics require live sessions with Shweta:
