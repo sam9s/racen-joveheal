@@ -347,6 +347,16 @@ export default function SomeraPage() {
                     )
                   );
                 }
+              } else if (data.type === 'correction') {
+                const correctedContent = data.corrected_response;
+                streamedContent = correctedContent;
+                setMessages((prev) => 
+                  prev.map((msg) => 
+                    msg.id === assistantMessageId 
+                      ? { ...msg, content: correctedContent }
+                      : msg
+                  )
+                );
               } else if (data.type === 'done') {
                 sources = data.sources || [];
                 const finalContent = data.full_response || streamedContent;

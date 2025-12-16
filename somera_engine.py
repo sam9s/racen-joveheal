@@ -15,7 +15,8 @@ from knowledge_base import search_coaching_content, search_coaching_content_enha
 from safety_guardrails import (
     get_somera_system_prompt,
     apply_safety_filters,
-    filter_response_for_safety
+    filter_response_for_safety,
+    apply_llm_critic
 )
 from emotional_patterns import (
     identify_emotional_patterns,
@@ -297,6 +298,9 @@ NOTE: I don't have specific coaching content for this topic in my knowledge base
         
         filtered_response, was_filtered = filter_response_for_safety(assistant_message)
         
+        critic_response, was_critic_corrected = apply_llm_critic(filtered_response)
+        final_response = critic_response
+        
         sources = []
         seen_videos = set()
         for doc in relevant_docs[:3]:
@@ -310,10 +314,10 @@ NOTE: I don't have specific coaching content for this topic in my knowledge base
                 })
         
         return {
-            "response": filtered_response,
+            "response": final_response,
             "sources": sources,
-            "safety_triggered": was_filtered,
-            "safety_category": "output_filtered" if was_filtered else None
+            "safety_triggered": was_filtered or was_critic_corrected,
+            "safety_category": "output_filtered" if was_filtered else ("critic_corrected" if was_critic_corrected else None)
         }
         
     except Exception as e:
@@ -465,6 +469,9 @@ NOTE: I don't have specific coaching content for this topic in my knowledge base
         
         filtered_response, was_filtered = filter_response_for_safety(full_response)
         
+        critic_response, was_critic_corrected = apply_llm_critic(filtered_response)
+        final_response = critic_response
+        
         sources = []
         if not is_simple_greeting:
             seen_videos = set()
@@ -478,11 +485,17 @@ NOTE: I don't have specific coaching content for this topic in my knowledge base
                         "youtube_url": doc.get("youtube_url")
                     })
         
+        if was_filtered or was_critic_corrected:
+            yield {
+                "type": "correction",
+                "corrected_response": final_response
+            }
+        
         yield {
             "type": "done",
             "sources": sources,
-            "safety_triggered": was_filtered,
-            "full_response": filtered_response if was_filtered else full_response
+            "safety_triggered": was_filtered or was_critic_corrected,
+            "full_response": final_response
         }
         
     except Exception as e:

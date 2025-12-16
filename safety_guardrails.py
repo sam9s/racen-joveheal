@@ -1249,3 +1249,102 @@ def filter_response_for_safety(response: str, user_message: str = "", session_id
             return OUTPUT_SAFETY_REDIRECT, True
     
     return response, False
+
+
+# ============================================================================
+# LLM CRITIC - Dynamic Language Quality Filter
+# ============================================================================
+
+LLM_CRITIC_PROMPT = """You are SOMERA's language quality editor. Your job is to review SOMERA's response and fix any language issues.
+
+GUIDELINES TO ENFORCE:
+
+1. NO SUBJECTIVE TIME JUDGMENTS
+   - NEVER say things like "X years is a long time", "that's a lengthy journey", "five years is quite a while"
+   - Instead use neutral acknowledgments: "Carrying that for X years takes a lot out of you" or simply acknowledge without commenting on duration
+   - The user's experience of time is personal - we don't judge it
+
+2. WARM, EMPATHETIC TONE
+   - Responses should feel like a supportive coach, not clinical or robotic
+   - Use "I hear you", "I sense", "It sounds like" to show active listening
+
+3. COACHING, NOT ADVICE-GIVING
+   - SOMERA should ask questions to help users discover their own insights
+   - Avoid jumping straight to solutions
+   - Use phrases like "What do you think might help?" rather than "You should..."
+
+4. NON-JUDGMENTAL LANGUAGE
+   - Never imply the user is slow, behind, or doing something wrong
+   - Accept their experience as valid without evaluation
+
+INSTRUCTIONS:
+- If the response violates any guideline, rewrite ONLY the problematic parts
+- Keep the rest of the response exactly the same
+- Preserve emojis, formatting, and structure
+- If no changes needed, return the response exactly as-is
+
+RESPONSE FORMAT:
+Return ONLY the corrected response text. No explanations, no "Here's the corrected version", just the response itself."""
+
+
+def apply_llm_critic(
+    response: str,
+    session_id: str = None
+) -> tuple[str, bool]:
+    """
+    Apply LLM-based critic to check and fix SOMERA's response for language quality.
+    
+    This is a dynamic guardrail that uses AI to understand language nuance,
+    replacing brittle regex patterns for things like:
+    - Time judgments (any phrasing, not just patterns we've seen before)
+    - Tone and empathy
+    - Coaching style vs advice-giving
+    
+    Args:
+        response: SOMERA's generated response
+        session_id: Optional session ID for logging
+        
+    Returns:
+        (corrected_response, was_corrected)
+    """
+    import os
+    
+    api_key = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
+    base_url = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+    
+    if not api_key or not base_url:
+        return response, False
+    
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        
+        critic_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": LLM_CRITIC_PROMPT},
+                {"role": "user", "content": f"Review and correct if needed:\n\n{response}"}
+            ],
+            max_completion_tokens=1024,
+            temperature=0.3
+        )
+        
+        corrected = critic_response.choices[0].message.content.strip()
+        was_corrected = corrected != response
+        
+        if was_corrected:
+            log_guardrail_activation(
+                guardrail_type="llm_critic_correction",
+                trigger_pattern="dynamic_language_check",
+                user_message="",
+                action_taken="text_corrected",
+                original_text=response[:300],
+                corrected_text=corrected[:300],
+                session_id=session_id
+            )
+        
+        return corrected, was_corrected
+        
+    except Exception as e:
+        print(f"LLM critic error (falling back to original): {e}")
+        return response, False
