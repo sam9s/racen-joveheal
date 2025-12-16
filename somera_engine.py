@@ -223,8 +223,11 @@ def generate_somera_response(
             "safety_category": "safety_redirect"
         }
     
-    contextual_query = build_contextual_search_query(user_message, conversation_history)
-    relevant_docs = search_coaching_content(contextual_query, n_results=n_context_docs)
+    enhanced_context = get_enhanced_coaching_context(user_message, conversation_history, n_context_docs)
+    relevant_docs = enhanced_context["documents"]
+    detected_patterns = enhanced_context["patterns"]
+    detected_pillars = enhanced_context["pillars"]
+    cross_pillar_context = enhanced_context["cross_pillar_context"]
     context = format_coaching_context(relevant_docs)
     
     has_relevant_content = bool(relevant_docs) and context != "No specific coaching content found for this topic."
@@ -235,9 +238,26 @@ def generate_somera_response(
     if user_name:
         personalization = f"\nThe user's name is {user_name}. Use their name naturally in your response."
     
+    cross_pillar_awareness = ""
+    if detected_patterns and detected_pillars:
+        pattern_names = [p.name for p in detected_patterns[:2]]
+        cross_pillar_awareness = f"""
+
+=== CROSS-PILLAR AWARENESS ===
+You've detected these emotional patterns: {', '.join(pattern_names)}
+The user is discussing: {', '.join(detected_pillars)}
+
+IMPORTANT: These patterns often show up across ALL life areas (career, relationships, wellness).
+When appropriate, gently probe if they notice similar feelings in other areas:
+- "I'm curious - do you notice this feeling showing up in other parts of your life too?"
+- "Sometimes what we feel at work can be connected to other areas. How is this affecting you elsewhere?"
+
+{cross_pillar_context}"""
+    
     if has_relevant_content:
         augmented_prompt = f"""{system_prompt}
 {personalization}
+{cross_pillar_awareness}
 
 === SHWETA'S COACHING WISDOM ===
 The following is from Shweta's actual coaching content. You MUST base your response on these insights:
@@ -254,6 +274,7 @@ CRITICAL ANTI-HALLUCINATION RULES:
     else:
         augmented_prompt = f"""{system_prompt}
 {personalization}
+{cross_pillar_awareness}
 
 NOTE: I don't have specific coaching content for this topic in my knowledge base. Respond warmly and empathetically, but be honest that you don't have specific coaching guidance. Offer to help them explore related topics or connect with the JoveHeal team."""
 

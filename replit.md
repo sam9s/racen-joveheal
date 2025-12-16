@@ -37,6 +37,16 @@ The core system uses a Retrieval Augmented Generation (RAG) approach.
   **Three Pillars:** Career, Relationship, Wellness
   
   **Key Principle:** "Coaching is all about listening. No one needs a solution - they need to be heard first."
+  
+  **Cross-Pillar Emotional Pattern System (Dec 2024):**
+  SOMERA now understands that emotions don't sit in silos. Key enhancements:
+  - `emotional_patterns.py`: Maps career symptoms to childhood root causes (e.g., "can't say no" → "conditional love in childhood")
+  - Enhanced retrieval: Searches by emotional pattern FIRST, then filters by pillar
+  - Root cause probing: SOMERA can gently explore if patterns show up across career, relationships, and wellness
+  - The "Blueprint" concept: Subconscious beliefs, conditioning, and patterns that shape reactions
+  
+  **Ingested Coaching Content:**
+  - Career Healing Course Masterclass (90 chunks, 9 emotional patterns, 10 root causes, all 3 pillars detected)
 - **Persistent Conversation Memory**: Users can sign in with Google to save conversations to a PostgreSQL database, allowing RACEN to remember past interactions and provide personalized greetings and context-aware responses.
 - **Personalized Greetings**: For signed-in users, RACEN offers first-name addressing, welcome-back messages with context from previous conversations, and new user introductions.
 - **Smart Conversation Summaries**: LLM-powered summaries of conversations are generated and stored, enabling RACEN to recall specific topics and recommendations for returning users.
