@@ -61,12 +61,12 @@ name = "Transcription Tool"
 author = "agent"
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "streamlit run transcribe_tool.py --server.port 9000 --server.address 0.0.0.0"
-waitForPort = 9000
+args = "streamlit run transcribe_tool.py --server.port 5000 --server.address 0.0.0.0"
+waitForPort = 5000
 
 [[ports]]
 localPort = 5000
