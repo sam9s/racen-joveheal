@@ -928,36 +928,50 @@ JUDGMENTAL_TIME_PATTERNS = [
 ]
 
 LIVE_SESSION_REFERRAL_PATTERNS = [
-    r"\benergy[\s-]?healing\b",
-    r"\bchakra\b",
-    r"\btheta[\s-]?healing\b",
-    r"\bhypnos[ie]s\b",
-    r"\bhypnotherapy\b",
-    r"\bregression\s*(therapy|work)?\b",
-    r"\bpast[\s-]?life\b",
-    r"\bpast[\s-]?lives\b",
-    r"\bancestral[\s-]?healing\b",
-    r"\bgenerational[\s-]?healing\b",
-    r"\benergy[\s-]?scan\b",
-    r"\benergy[\s-]?work\b",
-    r"\bblueprint[\s-]?clearing\b",
-    r"\bclear\s+(my|the)\s+blueprint\b",
+    # Energy healing variants
+    r"\benergy[\s-]?heal(ing|er|s)?\b",
+    r"\benergy[\s-]?(work|worker|scan|scanning|body)\b",
+    
+    # Chakra variants
+    r"\bchakra(s)?[\s-]?(balanc(e|ing)|clear(ing)?|work|heal(ing)?)?\b",
+    
+    # Theta/Hypno variants
+    r"\btheta[\s-]?heal(ing|er)?\b",
+    r"\bhypno(s[ie]s|therap(y|ist|eutic))?\b",
+    
+    # Regression variants
+    r"\bregression[\s-]?(therap(y|ist)|work|session)?\b",
+    r"\bpast[\s-]?(life|lives)[\s-]?(regression|work|session)?\b",
+    
+    # Ancestral/Generational variants
+    r"\bancestral[\s-]?(heal(ing|er)?|work|patterns?)?\b",
+    r"\bgenerational[\s-]?(heal(ing|er)?|trauma|patterns?)?\b",
+    
+    # Blueprint clearing
+    r"\bblueprint[\s-]?(clear(ing)?|work)?\b",
+    r"\bclear(ing)?\s+(my|the|your)\s+blueprint\b",
+    
+    # Guided meditation/altered states
     r"\bguided[\s-]?meditation\b",
-    r"\baltered[\s-]?state\b",
-    r"\balpha[\s-]?state\b",
-    r"\btheta[\s-]?state\b",
-    r"\bphysical[\s-]?healing\b",
-    r"\bheal\s+(my|the)\s+(pain|back|body)\b",
+    r"\b(altered|alpha|theta)[\s-]?state\b",
+    
+    # Physical/spiritual healing
+    r"\bphysical[\s-]?heal(ing|er)?\b",
+    r"\bheal\s+(my|the|your)\s+(pain|back|body|illness)\b",
+    r"\bspiritual[\s-]?(heal(ing|er)?|work|practice)?\b",
+    
+    # Divine/spirit concepts
     r"\bcreator\s+of\s+all\b",
-    r"\bdivine[\s-]?light\b",
-    r"\bspirit[\s-]?guide\b",
-    r"\bspiritual[\s-]?healing\b",
-    r"\bchakra[\s-]?(balancing|clearing|work)\b",
-    r"\baura\s+(reading|healing|clearing)\b",
-    r"\benergy[\s-]?body\b",
-    r"\binner[\s-]?child\s+work\b",
-    r"\btrauma[\s-]?release\b",
-    r"\bshadow[\s-]?work\b",
+    r"\bdivine[\s-]?(light|guidance|healing)\b",
+    r"\bspirit[\s-]?(guide|guides|work)\b",
+    
+    # Aura work
+    r"\baura[\s-]?(read(ing|er)?|heal(ing|er)?|clear(ing)?)\b",
+    
+    # Inner child/shadow/trauma
+    r"\binner[\s-]?child[\s-]?(work|session|healing)?\b",
+    r"\btrauma[\s-]?(release|work|healing|session)\b",
+    r"\bshadow[\s-]?(work|session|healing)\b",
 ]
 
 LIVE_SESSION_REFERRAL_RESPONSE = """I can sense this is something that would really benefit from Shweta's deeper work 💙. What you're describing - that kind of healing - is something she works on powerfully in her one-to-one sessions.
@@ -1022,50 +1036,66 @@ def check_for_live_session_topics(message: str) -> Tuple[bool, str]:
 def _fix_judgmental_time_phrases(response: str) -> str:
     """
     Attempt to fix common judgmental time phrases with non-judgmental alternatives.
-    Preserves sentence structure and capitalization where possible.
+    Uses full-sentence scope replacements to maintain grammatical correctness.
     Returns the corrected response.
     """
     import re
     result = response
     
-    def preserve_case(original_match, replacement):
-        """Preserve capitalization of first letter if original was capitalized."""
-        if original_match and original_match[0].isupper():
-            return replacement[0].upper() + replacement[1:]
-        return replacement
-    
-    replacements = [
-        (r"(\d+)\s*years?\s+is\s+(a\s+)?(long|such a long|very long|really long)\s+time", 
-         lambda m: f"Carrying that for {m.group(1)} years takes a lot out of you"),
-        (r"(That'?s|It'?s|This is|that'?s|it'?s|this is)\s+(a\s+)?(long|huge|enormous)\s+(amount\s+of\s+)?time",
-         lambda m: preserve_case(m.group(0), "that's quite a journey you've been on")),
-        (r"\b(It\s+|it\s+)?(will|would|Will|Would|going to|Going to)\s+take\s+(very\s+)?(long|forever|too long|ages)\b",
-         lambda m: preserve_case(m.group(0), "this is a process that unfolds at its own pace")),
-        (r"\b(It'?s|That'?s|it'?s|that'?s)\s+too\s+slow\b",
-         lambda m: preserve_case(m.group(0), "everyone moves at their own pace")),
-        (r"\b(You'?ve|You\s+have|you'?ve|you\s+have)\s+(waited|been\s+waiting)\s+too\s+long\b",
-         lambda m: preserve_case(m.group(0), "you've been patient through this")),
-        (r"\b(took|Took)\s+ages\b",
-         lambda m: preserve_case(m.group(0), "took its time")),
-        (r"\b(been|Been)\s+ages\b",
-         lambda m: preserve_case(m.group(0), "been a while")),
-        (r"\btoo\s+many\s+years\s+(have\s+)?",
-         "quite some time has "),
-        (r"\b(dragged|Dragged)\s+on\s+(forever|too long)\b",
-         lambda m: preserve_case(m.group(0), "continued for a while")),
+    # Full sentence-scope replacements that preserve grammar
+    sentence_replacements = [
+        # "X years is a long time" → complete sentence replacement
+        (r"(\d+)\s*years?\s+is\s+(a\s+)?(long|such a long|very long|really long)\s+time\.?",
+         lambda m: f"Carrying that for {m.group(1)} years takes a lot out of you."),
+        
+        # "That's/It's a long/huge time" → preserve subject
+        (r"(That'?s|It'?s|This is)\s+(a\s+)?(long|huge|enormous)\s+(amount\s+of\s+)?time\.?",
+         lambda m: f"{m.group(1)} quite a journey you've been on."),
+        
+        # "It will take forever/ages" → preserve subject
+        (r"(It|This|That)\s+(will|would)\s+take\s+(very\s+)?(long|forever|too long|ages)\.?",
+         lambda m: f"{m.group(1)} will unfold at its own pace."),
+        
+        # "It's/That's too slow" with following context
+        (r"(It'?s|That'?s)\s+too\s+slow(\s+for\s+\w+)?\.?",
+         lambda m: f"{m.group(1)} moving at its own pace" + (m.group(2) or "") + "."),
+        
+        # "You've waited/been waiting too long"
+        (r"(You'?ve|You\s+have)\s+(waited|been\s+waiting)\s+too\s+long\.?",
+         lambda m: f"{m.group(1)} been so patient through this."),
+        
+        # "This took too long" → preserve subject
+        (r"(This|It|That)\s+took\s+too\s+long\.?",
+         lambda m: f"{m.group(1)} took its own time."),
+        
+        # "took ages" → minimal change
+        (r"\b(took)\s+ages\b",
+         r"\1 some time"),
+        
+        # "been ages" → minimal change  
+        (r"\b(been)\s+ages\b",
+         r"\1 a while"),
+        
+        # "Too many years have passed"
+        (r"[Tt]oo\s+many\s+years\s+have\s+passed\.?",
+         "Quite some time has passed."),
+        
+        # "dragged on forever/too long"
+        (r"(has\s+)?(dragged)\s+on\s+(forever|too long)\.?",
+         lambda m: (m.group(1) or "") + "continued for quite a while."),
+        
+        # "so, so long" / "so so long"
         (r"\bso,?\s+so\s+long\b",
          "quite some time"),
-        (r"\b(this\s+)?took\s+too\s+long\b",
-         "took its time"),
-        (r"\b(way|far)\s+too\s+long\b",
-         "quite a while"),
-        (r"\b(It'?s|That'?s|it'?s|that'?s)\s+too\s+slow\s+for",
-         lambda m: preserve_case(m.group(0), "everyone moves at their own pace,") + " and for"),
+        
+        # "way/far too long" - only replace the phrase, not trailing context
+        (r"(That'?s|It'?s)?\s*(way|far)\s+too\s+long\b",
+         lambda m: (m.group(1) + " " if m.group(1) else "") + "quite a while"),
     ]
     
-    for pattern, replacement in replacements:
+    for pattern, replacement in sentence_replacements:
         if callable(replacement):
-            result = re.sub(pattern, replacement, result)
+            result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
         else:
             result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
     
