@@ -347,6 +347,31 @@
         "wellness",
         "career"
       ]
+    },
+    {
+      "video_title": "Career Healing - Elevate 360 Session 1",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 41,
+      "session_type": "group",
+      "emotional_patterns": [
+        "fear_of_visibility",
+        "imposter_syndrome",
+        "people_pleasing",
+        "self_worth_wounds",
+        "ancestral_money_patterns"
+      ],
+      "root_causes": [
+        "childhood_conditioning",
+        "ancestral_patterns",
+        "womb_trauma",
+        "parental_relationship"
+      ],
+      "pillars": [
+        "career",
+        "relationship",
+        "wellness"
+      ]
     }
   ]
 }
