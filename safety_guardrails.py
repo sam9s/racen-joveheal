@@ -8,7 +8,67 @@ This module implements strict safety filters to ensure the chatbot:
 """
 
 import re
-from typing import Tuple
+import os
+import json
+import logging
+from datetime import datetime
+from typing import Tuple, Optional
+
+GUARDRAIL_LOG_DIR = "logs/guardrails"
+os.makedirs(GUARDRAIL_LOG_DIR, exist_ok=True)
+
+logging.basicConfig(level=logging.INFO)
+guardrail_logger = logging.getLogger("guardrails")
+
+
+def log_guardrail_activation(
+    guardrail_type: str,
+    trigger_pattern: str,
+    user_message: str,
+    action_taken: str,
+    response_preview: Optional[str] = None,
+    session_id: Optional[str] = None,
+    original_text: Optional[str] = None,
+    corrected_text: Optional[str] = None
+) -> None:
+    """
+    Log when a guardrail is activated for monitoring and debugging.
+    
+    Args:
+        guardrail_type: Type of guardrail (live_session_referral, time_judgment_correction, crisis, etc.)
+        trigger_pattern: The pattern/keyword that triggered the guardrail
+        user_message: The user's original message (truncated for privacy)
+        action_taken: What action was taken (referral_sent, text_corrected, etc.)
+        response_preview: Preview of the response sent (optional)
+        session_id: Session identifier if available (optional)
+        original_text: Original text before correction (for time judgment)
+        corrected_text: Corrected text after filter (for time judgment)
+    """
+    log_entry = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "guardrail_type": guardrail_type,
+        "trigger_pattern": trigger_pattern,
+        "user_message_preview": user_message[:100] + "..." if len(user_message) > 100 else user_message,
+        "action_taken": action_taken,
+    }
+    
+    if response_preview:
+        log_entry["response_preview"] = response_preview[:150] + "..." if len(response_preview) > 150 else response_preview
+    if session_id:
+        log_entry["session_id"] = session_id
+    if original_text:
+        log_entry["original_text"] = original_text
+    if corrected_text:
+        log_entry["corrected_text"] = corrected_text
+    
+    guardrail_logger.info(f"Guardrail activated: {json.dumps(log_entry)}")
+    
+    log_file = os.path.join(GUARDRAIL_LOG_DIR, f"guardrails_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl")
+    try:
+        with open(log_file, "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception as e:
+        guardrail_logger.error(f"Failed to write guardrail log: {e}")
 
 JOVEHEAL_PROGRAM_URLS = {
     "Balance Mastery": "https://joveheal.com/balance-mastery/",
@@ -1016,18 +1076,28 @@ def _check_judgmental_time_patterns(text: str) -> bool:
     return any(re.search(pattern, text_lower) for pattern in JUDGMENTAL_TIME_PATTERNS)
 
 
-def check_for_live_session_topics(message: str) -> Tuple[bool, str]:
+def check_for_live_session_topics(message: str, session_id: Optional[str] = None) -> Tuple[bool, str]:
     """
     Check if the message contains topics that require live sessions with Shweta.
     These include energy healing, chakra work, regression, etc.
     Uses regex with word boundaries for accurate matching.
+    Logs activation for monitoring.
     Returns (requires_referral, referral_response)
     """
     import re
     message_lower = message.lower()
     
     for pattern in LIVE_SESSION_REFERRAL_PATTERNS:
-        if re.search(pattern, message_lower):
+        match = re.search(pattern, message_lower)
+        if match:
+            log_guardrail_activation(
+                guardrail_type="live_session_referral",
+                trigger_pattern=pattern,
+                user_message=message,
+                action_taken="referral_sent",
+                response_preview=LIVE_SESSION_REFERRAL_RESPONSE,
+                session_id=session_id
+            )
             return True, LIVE_SESSION_REFERRAL_RESPONSE
     
     return False, ""
@@ -1102,9 +1172,10 @@ def _fix_judgmental_time_phrases(response: str) -> str:
     return result
 
 
-def filter_response_for_safety(response: str) -> Tuple[str, bool]:
+def filter_response_for_safety(response: str, user_message: str = "", session_id: Optional[str] = None) -> Tuple[str, bool]:
     """
     Filter LLM response for safety concerns using sentence-scoped analysis.
+    Logs any corrections made for monitoring.
     Returns (filtered_response, was_filtered)
     
     Logic:
@@ -1124,14 +1195,39 @@ def filter_response_for_safety(response: str) -> Tuple[str, bool]:
             if _sentence_matches_safe_redirect(sentence):
                 continue
             if _sentence_matches_unsafe_advice(sentence):
+                log_guardrail_activation(
+                    guardrail_type="unsafe_advice_blocked",
+                    trigger_pattern="unsafe_advice_pattern",
+                    user_message=user_message,
+                    action_taken="response_blocked",
+                    session_id=session_id
+                )
                 return OUTPUT_SAFETY_REDIRECT, True
     
     if _check_judgmental_time_patterns(response):
+        original_response = response
         response = _fix_judgmental_time_phrases(response)
+        if response != original_response:
+            log_guardrail_activation(
+                guardrail_type="time_judgment_correction",
+                trigger_pattern="judgmental_time_phrase",
+                user_message=user_message,
+                action_taken="text_corrected",
+                original_text=original_response[:200],
+                corrected_text=response[:200],
+                session_id=session_id
+            )
     
     response_lower = response.lower()
     for pattern in OUTPUT_FORBIDDEN_PATTERNS:
         if re.search(pattern, response_lower):
+            log_guardrail_activation(
+                guardrail_type="forbidden_pattern_blocked",
+                trigger_pattern=pattern,
+                user_message=user_message,
+                action_taken="response_blocked",
+                session_id=session_id
+            )
             return OUTPUT_SAFETY_REDIRECT, True
     
     return response, False

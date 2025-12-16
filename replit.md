@@ -68,7 +68,11 @@ The core system uses a Retrieval Augmented Generation (RAG) approach.
 - **Smart Conversation Summaries**: LLM-powered summaries of conversations are generated and stored, enabling RACEN to recall specific topics and recommendations for returning users.
 - **LLM-Powered Typo Fixer**: Utilizes GPT-4o-mini to correct user typos before RAG retrieval, ensuring accurate search results from the ChromaDB vector store.
 - **Knowledge Base**: Supports PDF and text document uploads, and ingests website content. ChromaDB is used for vector storage to enable semantic search.
-- **Safety Guardrails**: Includes strict filtering for medical/mental health content, crisis keyword detection with safe redirection, and logging of flagged conversations.
+- **Safety Guardrails**: Includes strict filtering for medical/mental health content, crisis keyword detection with safe redirection, and logging of flagged conversations. SOMERA-specific guardrails include live session referral detection (26+ regex patterns) and non-judgmental time language filters. All guardrail activations are logged to `logs/guardrails/` in JSONL format for monitoring and debugging.
+  
+  **Documentation:**
+  - `docs/somera_production_roadmap.md`: Future production enhancements (NLP intent models, tokenization, varied responses) with decision triggers
+  - `docs/somera_guardrails_test_report.md`: Client-ready test report showing guardrails verification
 - **Multi-Channel Support**: Integrates with WhatsApp (via Twilio) and Instagram (via Meta Graph API), along with a direct API for custom integrations, maintaining session management and unified logging across channels.
 - **Embeddable Widget**: A standalone JavaScript widget (`/widget.js`) that can be embedded on external websites (like Kajabi) with a single script tag. Features a floating chat bubble, streaming responses, and XSS-safe rendering. CORS headers configured for joveheal.com and Kajabi domains.
 - **Google OAuth Authentication**: Implemented using NextAuth.js for user sign-in, linking conversations to user accounts in PostgreSQL. Server-side session verification and an internal API key secure communication between Next.js and Flask.
