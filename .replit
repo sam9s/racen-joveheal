@@ -2,7 +2,7 @@ modules = ["python-3.11", "nodejs-20", "postgresql-16"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["glibcLocales"]
+packages = ["glibcLocales", "ffmpeg"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -28,6 +28,10 @@ args = "Webhook Server"
 task = "workflow.run"
 args = "Frontend"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Transcription Tool"
+
 [[workflows.workflow]]
 name = "Webhook Server"
 author = "agent"
@@ -52,6 +56,18 @@ task = "shell.exec"
 args = "npx next dev -p 5000 -H 0.0.0.0"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Transcription Tool"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "streamlit run transcribe_tool.py --server.port 9000 --server.address 0.0.0.0"
+waitForPort = 9000
+
 [[ports]]
 localPort = 5000
 externalPort = 80
@@ -59,6 +75,14 @@ externalPort = 80
 [[ports]]
 localPort = 8080
 externalPort = 8080
+
+[[ports]]
+localPort = 8501
+externalPort = 3001
+
+[[ports]]
+localPort = 9000
+externalPort = 9000
 
 [userenv]
 
