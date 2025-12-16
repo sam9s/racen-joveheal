@@ -967,15 +967,20 @@ UNSAFE_ADVICE_PATTERNS = [
     r"(you have|sounds like|appears to be|i think you have).{0,20}(depression|anxiety|disorder|condition)",
 ]
 
+SPELLED_NUMBERS = r"(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|\d+)"
+
 JUDGMENTAL_TIME_PATTERNS = [
-    r"\d+\s*years?\s+is\s+(a\s+)?(long|such a long|very long|really long)",
-    r"(that'?s|it'?s|this is)\s+(a\s+)?(long|huge|enormous)\s+(amount of\s+)?time",
+    # "X years is a long time/journey/road/struggle" - both numeric and spelled numbers
+    rf"{SPELLED_NUMBERS}\s*years?\s+is\s+(a\s+)?(long|such a long|very long|really long)\s*(time|journey|road|path|struggle|battle)?",
+    # "for X years is a long journey" - catches "Carrying feelings for five years is a long journey"
+    rf"for\s+{SPELLED_NUMBERS}\s+years?\s+is\s+(a\s+)?(long|such a long|very long|really long)",
+    r"(that'?s|it'?s|this is)\s+(a\s+)?(long|huge|enormous)\s+(amount of\s+)?(time|journey|road|path|struggle|battle)?",
     r"\b(will|would|going to)\s+take\s+(very\s+)?(long|forever|too long|ages)\b",
     r"\b(it'?s|that'?s)\s+too\s+slow\b",
     r"\b(you'?ve|you have)\s+(waited|been waiting)\s+too\s+long\b",
     r"(that'?s|it'?s)\s+(been\s+)?going\s+on\s+too\s+long",
     r"(that'?s|it'?s)\s+a\s+lot\s+of\s+(years|time|months)",
-    r"\b(such|so)\s+a\s+long\s+time\b",
+    r"\b(such|so)\s+a\s+long\s+(time|journey|road|path|struggle|battle)\b",
     r"\bdecades?\s+(is|are)\s+(a\s+)?(long|forever)\b",
     r"\bthis\s+took\s+too\s+long\b",
     r"\b(way|far)\s+too\s+long\b",
@@ -985,6 +990,8 @@ JUDGMENTAL_TIME_PATTERNS = [
     r"\btoo\s+many\s+years\b",
     r"\bdragged\s+on\s+(forever|too long)\b",
     r"\bso,?\s+so\s+long\b",
+    # Catch "long journey/road/path" when combined with time references
+    rf"{SPELLED_NUMBERS}\s+years?\s+.{{0,20}}(long|difficult|hard)\s+(journey|road|path|battle)",
 ]
 
 LIVE_SESSION_REFERRAL_PATTERNS = [
@@ -1112,15 +1119,26 @@ def _fix_judgmental_time_phrases(response: str) -> str:
     import re
     result = response
     
+    # Pattern for spelled-out numbers
+    spelled_num = r"(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|\d+)"
+    
     # Full sentence-scope replacements that preserve grammar
     sentence_replacements = [
-        # "X years is a long time" → complete sentence replacement
-        (r"(\d+)\s*years?\s+is\s+(a\s+)?(long|such a long|very long|really long)\s+time\.?",
+        # "for X years is a long journey/time/road" - catches "Carrying feelings for five years is a long journey"
+        (rf"for\s+{spelled_num}\s+years?\s+is\s+(a\s+)?(long|such a long|very long|really long)\s*(time|journey|road|path|struggle|battle)?",
+         lambda m: f"for {m.group(1)} years takes a lot out of you"),
+        
+        # "X years is a long time/journey" → complete sentence replacement (numeric and spelled)
+        (rf"{spelled_num}\s*years?\s+is\s+(a\s+)?(long|such a long|very long|really long)\s*(time|journey|road|path|struggle|battle)?\.?",
          lambda m: f"Carrying that for {m.group(1)} years takes a lot out of you."),
         
-        # "That's/It's a long/huge time" → preserve subject
-        (r"(That'?s|It'?s|This is)\s+(a\s+)?(long|huge|enormous)\s+(amount\s+of\s+)?time\.?",
+        # "That's/It's a long/huge time/journey" → preserve subject
+        (r"(That'?s|It'?s|This is)\s+(a\s+)?(long|huge|enormous)\s+(amount\s+of\s+)?(time|journey|road|path|struggle|battle)?\.?",
          lambda m: f"{m.group(1)} quite a journey you've been on."),
+        
+        # "such a long journey/time" → neutral phrasing
+        (r"\b(such|so)\s+a\s+long\s+(time|journey|road|path|struggle|battle)\b",
+         "quite a journey"),
         
         # "It will take forever/ages" → preserve subject
         (r"(It|This|That)\s+(will|would)\s+take\s+(very\s+)?(long|forever|too long|ages)\.?",
