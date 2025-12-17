@@ -473,6 +473,30 @@
         "career",
         "wellness"
       ]
+    },
+    {
+      "video_title": "Relationship Healing Course Session 1",
+      "topic": "relationship",
+      "speaker": "Shweta",
+      "chunks": 20,
+      "session_type": "masterclass",
+      "emotional_patterns": [
+        "feeling_invisible",
+        "fear_of_rejection",
+        "abandonment",
+        "miscommunication",
+        "disconnection"
+      ],
+      "root_causes": [
+        "childhood_wounds",
+        "conditional_love",
+        "unmet_needs"
+      ],
+      "pillars": [
+        "relationship",
+        "wellness",
+        "career"
+      ]
     }
   ]
 }
