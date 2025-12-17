@@ -9,7 +9,7 @@ import tempfile
 import subprocess
 import math
 import re
-import requests
+import gdown
 from pathlib import Path
 
 st.set_page_config(
@@ -48,35 +48,14 @@ def extract_gdrive_id(url: str) -> str:
     return None
 
 def download_from_gdrive(file_id: str, output_path: str, progress_callback=None) -> bool:
-    """Download file from Google Drive using direct download URL."""
+    """Download file from Google Drive using gdown (handles large files)."""
     try:
-        session = requests.Session()
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, output_path, quiet=False, fuzzy=True)
         
-        url = f"https://drive.google.com/uc?export=download&id={file_id}"
-        response = session.get(url, stream=True)
-        
-        for key, value in response.cookies.items():
-            if key.startswith('download_warning'):
-                url = f"https://drive.google.com/uc?export=download&confirm={value}&id={file_id}"
-                response = session.get(url, stream=True)
-                break
-        
-        if 'Content-Disposition' not in response.headers:
-            url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm=t"
-            response = session.get(url, stream=True)
-        
-        total_size = int(response.headers.get('content-length', 0))
-        
-        with open(output_path, 'wb') as f:
-            downloaded = 0
-            for chunk in response.iter_content(chunk_size=8192*10):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if progress_callback and total_size > 0:
-                        progress_callback(downloaded / total_size)
-        
-        return os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            return True
+        return False
     except Exception as e:
         st.error(f"Download error: {e}")
         return False
