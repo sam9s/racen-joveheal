@@ -448,6 +448,31 @@
         "wellness",
         "relationship"
       ]
+    },
+    {
+      "video_title": "Health Healing - Elevate 360 Session 2",
+      "topic": "wellness",
+      "speaker": "Shweta",
+      "chunks": 22,
+      "session_type": "group",
+      "emotional_patterns": [
+        "body_communication",
+        "intuitive_senses",
+        "ancestral_healing",
+        "emotional_eating",
+        "surrender_trust"
+      ],
+      "root_causes": [
+        "ancestral_patterns",
+        "inner_child_wounds",
+        "nervous_system_dysregulation",
+        "suppressed_emotions"
+      ],
+      "pillars": [
+        "relationship",
+        "career",
+        "wellness"
+      ]
     }
   ]
 }
