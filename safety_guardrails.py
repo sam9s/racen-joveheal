@@ -1020,11 +1020,17 @@ LIVE_SESSION_REFERRAL_PATTERNS = [
     
     # Guided meditation/altered states
     r"\bguided[\s-]?meditation\b",
-    r"\b(altered|alpha|theta)[\s-]?state\b",
+    r"\b(altered|alpha|theta|trance)[\s-]?state\b",
+    r"\btrance\b",
+    r"\bdeep[\s-]?meditation\b",
+    r"\bguide\s+(me|us)\s+(through|into)\s+(a\s+)?(meditation|relaxation)\b",
     
     # Physical/spiritual healing
     r"\bphysical[\s-]?heal(ing|er)?\b",
     r"\bheal\s+(my|the|your)\s+(pain|back|body|illness)\b",
+    r"\bheal\s+(my|the|your)\s+(chronic\s+)?(pain|back|body|illness)\b",
+    r"\bchronic[\s-]?pain\b.*\bheal",
+    r"\bheal.*\bchronic[\s-]?pain\b",
     r"\bspiritual[\s-]?(heal(ing|er)?|work|practice)?\b",
     
     # Divine/spirit concepts
