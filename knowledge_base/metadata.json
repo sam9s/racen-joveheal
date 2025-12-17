@@ -521,6 +521,30 @@
         "wellness",
         "career"
       ]
+    },
+    {
+      "video_title": "Relationship Healing Elevate 360 Session 2",
+      "topic": "relationship",
+      "speaker": "Shweta",
+      "chunks": 9,
+      "session_type": "group",
+      "emotional_patterns": [
+        "self_love_deficit",
+        "unmet_emotional_needs",
+        "emotional_loops",
+        "boundaries_difficulty",
+        "different_love_languages"
+      ],
+      "root_causes": [
+        "childhood_wounds",
+        "unmet_needs",
+        "emotional_wiring"
+      ],
+      "pillars": [
+        "wellness",
+        "relationship",
+        "career"
+      ]
     }
   ]
 }
