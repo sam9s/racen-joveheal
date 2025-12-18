@@ -166,9 +166,35 @@ Creates compressed archive with PostgreSQL, ChromaDB, and knowledge base.
 3. **Manual Rebuild**: Clone Git, initialize empty database, rebuild knowledge base
 
 ### Critical Files for External Deployment
-- `docker-compose.yml`: Complete Docker stack configuration
+- `docker-compose.yml`: Complete Docker stack configuration (Nginx)
+- `docker-compose.caddy.yml`: Caddy version (simplest, auto-SSL)
+- `docker-compose.dokploy.yml`: Dokploy/Traefik version
+- `docker-compose.client.yml`: Client distribution (uses pre-built images, hides source code)
 - `Dockerfile.flask`: Flask backend container
 - `Dockerfile.nextjs`: Next.js frontend container
 - `Dockerfile.streamlit`: Admin panel container
-- `nginx.conf`: Reverse proxy configuration
+- `nginx.conf`: Reverse proxy configuration (for docker-compose.yml)
+- `Caddyfile`: Caddy configuration (for docker-compose.caddy.yml)
 - `.env.example`: Environment variables template
+
+### Deployment Documentation
+- `docs/deployment_self_hosted.md`: Self-hosted VPS deployment guide
+- `docs/deployment_client_handoff.md`: Client-facing deployment instructions
+- `docs/publishing_docker_images.md`: How to build/push Docker images to Docker Hub
+- `docs/dokploy_deployment_guide.md`: Dokploy-specific deployment guide
+
+### Business Distribution Model
+To sell/distribute the application without exposing source code:
+1. Build Docker images locally from source
+2. Push to Docker Hub (your account)
+3. Give client `docker-compose.client.yml` + `Caddyfile` + `.env.example`
+4. Client pulls pre-built images (no source code access)
+
+## Pending Items
+
+### URGENT: Client Concern (Dec 18, 2025)
+Client raised a concern during the production outage that needs to be discussed.
+**REMINDER**: Ask Sam about this client concern when resuming work.
+
+### UptimeRobot Monitoring (Still Pending)
+Set up monitoring for production URLs - this was identified as urgent but not yet completed.
