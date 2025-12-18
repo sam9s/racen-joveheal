@@ -22,6 +22,16 @@ git add -A
 # Commit
 git commit -m "$MESSAGE" || echo "Nothing new to commit"
 
+# Pull remote changes first (merge strategy to avoid conflicts)
+echo "Pulling remote changes..."
+git pull github main --no-rebase --no-edit || {
+    echo "Pull failed - attempting to resolve..."
+    git pull github main --rebase || {
+        echo "ERROR: Could not sync with remote. Manual intervention needed."
+        exit 1
+    }
+}
+
 # Push
 git push -u github main
 
