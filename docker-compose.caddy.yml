@@ -1,0 +1,167 @@
+# JoveHeal Docker Compose with Caddy
+# =====================================
+#
+# This version uses Caddy as the reverse proxy instead of Nginx or Traefik.
+# Caddy automatically handles SSL certificates - no configuration needed!
+#
+# WHEN TO USE THIS:
+# - If you want to manage your own reverse proxy (not use Dokploy's Traefik)
+# - If you prefer Caddy's simplicity over Nginx
+# - If running on any VPS without Dokploy
+#
+# SETUP STEPS:
+# 1. Copy .env.example to .env and fill in secrets
+# 2. Update DOMAIN in .env to your domain
+# 3. Point your domain's DNS to your server's IP
+# 4. Run: docker-compose -f docker-compose.caddy.yml up -d
+# 5. Wait ~30 seconds for SSL certificates
+# 6. Access: https://yourdomain.com
+
+services:
+  # ===================
+  # PostgreSQL Database
+  # ===================
+  postgres:
+    image: postgres:15-alpine
+    container_name: joveheal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-joveheal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-joveheal}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-joveheal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Flask Backend (API)
+  # ===================
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile.flask
+    container_name: joveheal-flask
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-joveheal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-joveheal}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - DASHBOARD_EMAIL=${DASHBOARD_EMAIL:-}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-}
+      - RACEN_PERSONA_MODE=${RACEN_PERSONA_MODE:-detailed}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data/vector_db:/app/vector_db
+      - ./data/knowledge_base:/app/knowledge_base
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Next.js Frontend
+  # ===================
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile.nextjs
+    container_name: joveheal-nextjs
+    restart: unless-stopped
+    depends_on:
+      flask:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - NEXTAUTH_URL=${NEXTAUTH_URL:?NEXTAUTH_URL is required}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - FLASK_BACKEND_URL=http://flask:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Streamlit Admin Panel
+  # ===================
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: joveheal-admin
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - flask
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-joveheal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-joveheal}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DASHBOARD_EMAIL=${DASHBOARD_EMAIL:-}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-}
+    volumes:
+      - ./data/vector_db:/app/vector_db
+      - ./data/knowledge_base:/app/knowledge_base
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Caddy Reverse Proxy
+  # ===================
+  caddy:
+    image: caddy:2-alpine
+    container_name: joveheal-caddy
+    restart: unless-stopped
+    depends_on:
+      - nextjs
+      - flask
+      - admin
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:?DOMAIN is required}
+    networks:
+      - joveheal-network
+
+# ===================
+# Persistent Volumes
+# ===================
+volumes:
+  postgres_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+# ===================
+# Network
+# ===================
+networks:
+  joveheal-network:
+    driver: bridge

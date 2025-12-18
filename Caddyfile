@@ -1,0 +1,58 @@
+# JoveHeal Caddy Configuration
+# =============================
+#
+# This file configures Caddy to:
+# - Automatically get SSL certificates (Let's Encrypt)
+# - Route traffic to the correct services
+# - Handle WebSocket connections for streaming
+#
+# The {$DOMAIN} variable is set in docker-compose.caddy.yml
+
+# Main website and API
+{$DOMAIN} {
+    # API routes go to Flask
+    handle /api/* {
+        reverse_proxy flask:8080
+    }
+    
+    # Health check route (Flask)
+    handle /health {
+        reverse_proxy flask:8080
+    }
+    
+    # Widget endpoint (Next.js serves this)
+    handle /widget.js {
+        reverse_proxy nextjs:5000
+    }
+    
+    # Everything else goes to Next.js
+    handle {
+        reverse_proxy nextjs:5000
+    }
+    
+    # Enable compression
+    encode gzip
+    
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Admin panel on subdomain
+admin.{$DOMAIN} {
+    reverse_proxy admin:5001
+    
+    encode gzip
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Optional: Redirect www to non-www
+www.{$DOMAIN} {
+    redir https://{$DOMAIN}{uri} permanent
+}
