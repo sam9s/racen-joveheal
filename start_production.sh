@@ -1,6 +1,6 @@
 #!/bin/bash
-# Production startup script
-# Next.js uses PORT env var (set by Autoscale), Flask on 8080
+# Production startup script for Replit Autoscale
+# Next.js MUST run in foreground to keep deployment alive
 
 set -e
 
@@ -19,28 +19,15 @@ fi
 echo "[Startup] .next folder found:"
 ls -la .next 2>&1 | head -5
 
-echo "[Startup] Starting Next.js on port $APP_PORT..."
-
-# Start Next.js using npx (more reliable than direct node path)
-npx next start -p "$APP_PORT" -H 0.0.0.0 &
-NEXT_PID=$!
-
-# Wait for Next.js to be ready
-sleep 3
-
-# Verify Next.js is running
-if kill -0 $NEXT_PID 2>/dev/null; then
-    echo "[Startup] Next.js started successfully (PID: $NEXT_PID)"
-else
-    echo "[ERROR] Next.js failed to start!"
-    exit 1
-fi
-
-echo "[Startup] Starting Flask on port 8080..."
+# Start Flask webhook server in BACKGROUND first
+echo "[Startup] Starting Flask on port 8080 (background)..."
 python webhook_server.py &
 FLASK_PID=$!
+echo "[Startup] Flask started (PID: $FLASK_PID)"
 
-echo "[Startup] Services started - Next.js on $APP_PORT, Flask on 8080"
+# Give Flask a moment to start
+sleep 2
 
-# Wait for both processes
-wait
+# Start Next.js in FOREGROUND (CRITICAL for Autoscale - keeps deployment alive)
+echo "[Startup] Starting Next.js on port $APP_PORT (foreground)..."
+exec npx next start -p "$APP_PORT" -H 0.0.0.0
