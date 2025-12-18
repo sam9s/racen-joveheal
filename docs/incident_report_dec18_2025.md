@@ -19,6 +19,24 @@
 ### The Core Problem
 The production deployment script (`start_production.sh`) was running Next.js as a **background process** using `&`, which caused the main shell process (PID 1) to exit immediately after spawning the services.
 
+### WHY This Core Problem Occurred (The TRUE Root Cause)
+
+**This is critical to understand:** The backgrounding bug was introduced by the AI Agent in an earlier session (commit `907d8a1` - "Improve application deployment and startup configurations") as part of a "fast cold start" optimization.
+
+**Why it wasn't noticed earlier:**
+1. The change was made to speed up startup by running Flask and Next.js in parallel
+2. **Internal development environment continued to work** because Replit's workflow runner keeps background processes alive differently than Autoscale
+3. **Production was still running the OLD deployment** - Autoscale doesn't automatically redeploy when code changes; it only redeploys when you explicitly publish
+4. So the old (working) version continued serving traffic, masking the bug
+
+**What triggered the failure:**
+1. When you attempted to switch from Autoscale → Reserved VM → back to Autoscale
+2. This forced Replit to **tear down the old deployment** and create a fresh one
+3. The fresh deployment used the **new (broken) script** for the first time
+4. That's when the 404s started
+
+**In summary:** The bug was a latent defect introduced by the Agent. It was hidden because the old deployment kept running. The deployment type switch exposed the bug by forcing a fresh deployment.
+
 ### Why This Caused 404 Errors
 Replit Autoscale monitors **PID 1** (the main process). When PID 1 exits:
 1. Autoscale interprets this as "the app has finished running"
@@ -206,11 +224,14 @@ Before making ANY deployment configuration changes:
 ## 9. Key Lessons Learned
 
 1. **Autoscale has specific process requirements** - The main process (PID 1) must stay running
-2. **Internal dev ≠ Production** - They use different process management
+2. **Internal dev ≠ Production** - They use different process management - a change that works in dev may break production
 3. **[[ports]] sections are irrelevant to Autoscale** - Don't waste time on them for Autoscale issues
 4. **Deployment logs are critical** - Check them first, not last
 5. **Monitoring prevents surprises** - Set up UptimeRobot immediately
 6. **Document everything** - This RCA should prevent future incidents
+7. **Agent-introduced bugs can be latent** - Changes made by AI agents may not be immediately visible if old deployments keep running
+8. **Always republish after script changes** - Any change to start_production.sh should trigger an immediate publish and verification
+9. **Test deployment behavior, not just functionality** - A feature working in dev doesn't mean the deployment script works correctly
 
 ---
 
