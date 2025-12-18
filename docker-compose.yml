@@ -1,0 +1,186 @@
+# JoveHeal Complete Docker Compose Configuration
+# ==============================================
+#
+# This file deploys the entire JoveHeal application stack:
+# - Next.js frontend (port 5000)
+# - Flask backend (port 8080)
+# - PostgreSQL database (port 5432)
+# - Nginx reverse proxy (port 80/443)
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in secrets
+#   2. Run: docker-compose up -d
+#   3. Access: http://localhost or https://yourdomain.com
+#
+# For production with SSL:
+#   1. Update DOMAIN in .env
+#   2. Uncomment certbot service
+#   3. Run: docker-compose up -d
+#
+
+version: '3.8'
+
+services:
+  # ===================
+  # PostgreSQL Database
+  # ===================
+  postgres:
+    image: postgres:15-alpine
+    container_name: joveheal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-joveheal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-joveheal}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups  # For backup restoration
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-joveheal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Flask Backend (API)
+  # ===================
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile.flask
+    container_name: joveheal-flask
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-joveheal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-joveheal}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - DASHBOARD_EMAIL=${DASHBOARD_EMAIL:-}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-}
+      - RACEN_PERSONA_MODE=${RACEN_PERSONA_MODE:-detailed}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data/vector_db:/app/vector_db
+      - ./data/knowledge_base:/app/knowledge_base
+      - ./logs:/app/logs
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Next.js Frontend
+  # ===================
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile.nextjs
+    container_name: joveheal-nextjs
+    restart: unless-stopped
+    depends_on:
+      flask:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - NEXTAUTH_URL=${NEXTAUTH_URL:?NEXTAUTH_URL is required}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - FLASK_BACKEND_URL=http://flask:8080
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Nginx Reverse Proxy
+  # ===================
+  nginx:
+    image: nginx:alpine
+    container_name: joveheal-nginx
+    restart: unless-stopped
+    depends_on:
+      - nextjs
+      - flask
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro  # For SSL certificates
+      - certbot_www:/var/www/certbot:ro
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Streamlit Admin Panel (Optional)
+  # ===================
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: joveheal-admin
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - flask
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-joveheal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-joveheal}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DASHBOARD_EMAIL=${DASHBOARD_EMAIL:-}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-}
+    volumes:
+      - ./data/vector_db:/app/vector_db
+      - ./data/knowledge_base:/app/knowledge_base
+    ports:
+      - "5001:5001"
+    networks:
+      - joveheal-network
+
+  # ===================
+  # Certbot (SSL - Optional)
+  # ===================
+  # Uncomment for production SSL
+  # certbot:
+  #   image: certbot/certbot
+  #   container_name: joveheal-certbot
+  #   volumes:
+  #     - ./ssl:/etc/letsencrypt
+  #     - certbot_www:/var/www/certbot
+  #   command: certonly --webroot -w /var/www/certbot --email ${ADMIN_EMAIL} -d ${DOMAIN} --agree-tos --no-eff-email
+  #   depends_on:
+  #     - nginx
+
+# ===================
+# Persistent Volumes
+# ===================
+volumes:
+  postgres_data:
+    driver: local
+  certbot_www:
+    driver: local
+
+# ===================
+# Network
+# ===================
+networks:
+  joveheal-network:
+    driver: bridge

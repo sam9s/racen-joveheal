@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-12-18_21-41-49",
+  "archive": "backups/joveheal_complete_2025-12-18_21-41-49.tar.gz",
+  "results": {
+    "postgresql": {
+      "status": "success",
+      "file": "backups/joveheal_backup_2025-12-18_21-41-49/postgresql.sql",
+      "size": 252801
+    },
+    "chromadb": {
+      "status": "success",
+      "path": "backups/joveheal_backup_2025-12-18_21-41-49/vector_db",
+      "size": 5136712
+    },
+    "knowledge_base": {
+      "status": "success",
+      "path": "backups/joveheal_backup_2025-12-18_21-41-49/knowledge_base",
+      "size": 69971
+    },
+    "somera_content": {
+      "status": "skipped",
+      "reason": "directory not found"
+    },
+    "env_template": {
+      "status": "success",
+      "file": "backups/joveheal_backup_2025-12-18_21-41-49/env_template.json"
+    },
+    "restore_script": {
+      "status": "success",
+      "file": "backups/joveheal_backup_2025-12-18_21-41-49/restore.sh"
+    },
+    "archive": {
+      "status": "success",
+      "file": "backups/joveheal_complete_2025-12-18_21-41-49.tar.gz",
+      "size": 2077400
+    }
+  }
+}

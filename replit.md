@@ -148,3 +148,27 @@ Set up UptimeRobot (free) to monitor:
 - Homepage: https://jove-heal-chatbot--sam9s.replit.app/
 - Health: https://jove-heal-chatbot--sam9s.replit.app/health
 - Widget: https://jove-heal-chatbot--sam9s.replit.app/widget.js
+
+## Disaster Recovery
+
+### Full Documentation
+- `docs/disaster_recovery_plan.md`: Complete step-by-step recovery guide
+
+### Quick Backup
+```bash
+python disaster_recovery/backup.py
+```
+Creates compressed archive with PostgreSQL, ChromaDB, and knowledge base.
+
+### Recovery Options
+1. **New Replit Instance**: Import from Git, restore backup (~15 min)
+2. **External VPS with Docker**: Use `docker-compose.yml` (~30 min)
+3. **Manual Rebuild**: Clone Git, initialize empty database, rebuild knowledge base
+
+### Critical Files for External Deployment
+- `docker-compose.yml`: Complete Docker stack configuration
+- `Dockerfile.flask`: Flask backend container
+- `Dockerfile.nextjs`: Next.js frontend container
+- `Dockerfile.streamlit`: Admin panel container
+- `nginx.conf`: Reverse proxy configuration
+- `.env.example`: Environment variables template
