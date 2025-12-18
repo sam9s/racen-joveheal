@@ -1,0 +1,173 @@
+# JoveHeal Docker Compose for Dokploy
+# =====================================
+#
+# This version is optimized for Dokploy deployment:
+# - Uses Traefik instead of Nginx (Dokploy provides Traefik)
+# - Connects to dokploy-network for automatic routing
+# - SSL is handled automatically by Traefik/Let's Encrypt
+#
+# SETUP STEPS:
+# 1. In Dokploy: Create Project → Add Docker Compose service
+# 2. Point to this file (docker-compose.dokploy.yml)
+# 3. In Dokploy's Environment tab, add these secrets:
+#    - POSTGRES_PASSWORD (your database password)
+#    - OPENAI_API_KEY (your OpenAI key)
+#    - SESSION_SECRET (random string for sessions)
+#    - INTERNAL_API_KEY (random string for internal API)
+#    - NEXTAUTH_URL (https://yourdomain.com)
+#    - NEXTAUTH_SECRET (random string for auth)
+#    - GOOGLE_CLIENT_ID (from Google Cloud Console)
+#    - GOOGLE_CLIENT_SECRET (from Google Cloud Console)
+#    - DOMAIN (your domain, e.g., chat.joveheal.com)
+# 4. Click Deploy
+#
+# IMPORTANT: Replace <your-app-name> with a unique name (e.g., joveheal)
+
+services:
+  # ===================
+  # PostgreSQL Database
+  # ===================
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-joveheal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-joveheal}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-joveheal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - joveheal-internal
+      - dokploy-network
+
+  # ===================
+  # Flask Backend (API)
+  # ===================
+  flask:
+    build:
+      context: .
+      dockerfile: Dockerfile.flask
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-joveheal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-joveheal}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - DASHBOARD_EMAIL=${DASHBOARD_EMAIL:-}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-}
+      - RACEN_PERSONA_MODE=${RACEN_PERSONA_MODE:-detailed}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - vector_db_data:/app/vector_db
+      - knowledge_base_data:/app/knowledge_base
+      - logs_data:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - joveheal-internal
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.joveheal-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.joveheal-api.entrypoints=websecure"
+      - "traefik.http.routers.joveheal-api.tls.certResolver=letsencrypt"
+      - "traefik.http.services.joveheal-api.loadbalancer.server.port=8080"
+
+  # ===================
+  # Next.js Frontend
+  # ===================
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile.nextjs
+    restart: unless-stopped
+    depends_on:
+      flask:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - NEXTAUTH_URL=${NEXTAUTH_URL:?NEXTAUTH_URL is required}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - FLASK_BACKEND_URL=http://flask:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - joveheal-internal
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.joveheal-web.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.joveheal-web.entrypoints=websecure"
+      - "traefik.http.routers.joveheal-web.tls.certResolver=letsencrypt"
+      - "traefik.http.services.joveheal-web.loadbalancer.server.port=5000"
+      - "traefik.http.routers.joveheal-web.priority=1"
+
+  # ===================
+  # Streamlit Admin Panel
+  # ===================
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - flask
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-joveheal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-joveheal}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DASHBOARD_EMAIL=${DASHBOARD_EMAIL:-}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-}
+    volumes:
+      - vector_db_data:/app/vector_db
+      - knowledge_base_data:/app/knowledge_base
+    networks:
+      - joveheal-internal
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.joveheal-admin.rule=Host(`admin.${DOMAIN}`)"
+      - "traefik.http.routers.joveheal-admin.entrypoints=websecure"
+      - "traefik.http.routers.joveheal-admin.tls.certResolver=letsencrypt"
+      - "traefik.http.services.joveheal-admin.loadbalancer.server.port=5001"
+
+# ===================
+# Persistent Volumes
+# ===================
+volumes:
+  postgres_data:
+    driver: local
+  vector_db_data:
+    driver: local
+  knowledge_base_data:
+    driver: local
+  logs_data:
+    driver: local
+
+# ===================
+# Networks
+# ===================
+networks:
+  joveheal-internal:
+    driver: bridge
+  dokploy-network:
+    external: true
