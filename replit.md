@@ -106,3 +106,45 @@ The architecture separates concerns into a Next.js frontend (port 5000), a Flask
 - **WhatsApp Integration**: Twilio SDK
 - **Instagram Integration**: Meta Graph API
 - **Data Analysis**: Pandas (for analytics dashboard)
+
+## Deployment Configuration (CRITICAL)
+
+### Autoscale Requirements
+**IMPORTANT:** Replit Autoscale monitors PID 1 (the main process). If PID 1 exits, the deployment is torn down and returns 404.
+
+**NEVER** background the main service in `start_production.sh`. Always use `exec` to keep the process alive:
+
+```bash
+# CORRECT - keeps deployment alive
+exec npx next start -p "$APP_PORT" -H 0.0.0.0
+
+# WRONG - shell exits, deployment dies
+npx next start -p "$APP_PORT" -H 0.0.0.0 &
+```
+
+### Current Working start_production.sh Pattern
+1. Start Flask in background first (`python webhook_server.py &`)
+2. Run Next.js in foreground with `exec`
+3. Use `${PORT:-5000}` for the app port (Autoscale provides $PORT)
+
+### Pre-Deployment Checklist
+- [ ] Verify `start_production.sh` uses `exec` for main service
+- [ ] Run `npx next build` and verify `.next` folder exists
+- [ ] Test `python webhook_server.py` starts without errors
+- [ ] After publish, verify `/health` returns 200
+
+### Deployment Recovery
+If production goes down:
+1. Check deployment logs in Publishing tab
+2. Verify internal dev environment works
+3. Check start_production.sh hasn't been changed
+4. Use Replit Checkpoints to rollback if needed
+
+### Incident Documentation
+- `docs/incident_report_dec18_2025.md`: Full RCA for Dec 18, 2025 outage
+
+### Monitoring (Required)
+Set up UptimeRobot (free) to monitor:
+- Homepage: https://jove-heal-chatbot--sam9s.replit.app/
+- Health: https://jove-heal-chatbot--sam9s.replit.app/health
+- Widget: https://jove-heal-chatbot--sam9s.replit.app/widget.js
