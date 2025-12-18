@@ -33,6 +33,13 @@
       "static/chunks/998-89f3582a9d6959dc.js",
       "static/chunks/app/auth/signin/page-eaf0dcecae2ed843.js"
     ],
+    "/widget-test/page": [
+      "static/chunks/webpack-facfb64f78722460.js",
+      "static/chunks/fd9d1056-43e0436d99e96044.js",
+      "static/chunks/23-ed8fcb15668058bb.js",
+      "static/chunks/main-app-831de1faa369aaae.js",
+      "static/chunks/app/widget-test/page-de1a6dd55fa09506.js"
+    ],
     "/page": [
       "static/chunks/webpack-facfb64f78722460.js",
       "static/chunks/fd9d1056-43e0436d99e96044.js",
@@ -41,13 +48,6 @@
       "static/chunks/998-89f3582a9d6959dc.js",
       "static/chunks/648-e0e683fc7e5f2688.js",
       "static/chunks/app/page-b92f4d300fce5fe9.js"
-    ],
-    "/widget-test/page": [
-      "static/chunks/webpack-facfb64f78722460.js",
-      "static/chunks/fd9d1056-43e0436d99e96044.js",
-      "static/chunks/23-ed8fcb15668058bb.js",
-      "static/chunks/main-app-831de1faa369aaae.js",
-      "static/chunks/app/widget-test/page-de1a6dd55fa09506.js"
     ],
     "/somera/page": [
       "static/chunks/webpack-facfb64f78722460.js",
