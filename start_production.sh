@@ -1,17 +1,21 @@
 #!/bin/bash
 # Production startup script
-# Next.js on port 5000 (Autoscale requirement), Flask on port 8080
+# Next.js uses PORT env var (set by Autoscale), Flask on 8080
 
 set -e
 
+# Use deployment PORT or default to 5000 for local testing
+APP_PORT="${PORT:-5000}"
+
+echo "[Startup] PORT=$APP_PORT"
 echo "[Startup] Current directory: $(pwd)"
 echo "[Startup] Checking for .next folder..."
 ls -la .next 2>&1 | head -5 || echo "[ERROR] .next folder missing!"
 
-echo "[Startup] Starting Next.js on port 5000..."
+echo "[Startup] Starting Next.js on port $APP_PORT..."
 
-# Start Next.js FIRST on port 5000 - required for Autoscale
-node node_modules/next/dist/bin/next start -p 5000 -H 0.0.0.0 &
+# Start Next.js on the deployment-assigned port
+node node_modules/next/dist/bin/next start -p "$APP_PORT" -H 0.0.0.0 &
 NEXT_PID=$!
 
 # Wait for Next.js to be ready
@@ -29,7 +33,7 @@ echo "[Startup] Starting Flask on port 8080..."
 python webhook_server.py &
 FLASK_PID=$!
 
-echo "[Startup] Services started - Next.js (PID: $NEXT_PID), Flask (PID: $FLASK_PID)"
+echo "[Startup] Services started - Next.js on $APP_PORT, Flask on 8080"
 
 # Wait for both processes
 wait
