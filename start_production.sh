@@ -9,9 +9,12 @@ echo "[Startup] Starting services in parallel for fast cold start..."
 python webhook_server.py &
 FLASK_PID=$!
 
+# Use PORT env var for deployment, fallback to 5000 for local dev
+APP_PORT="${PORT:-5000}"
+
 # Start Next.js immediately - don't wait for Flask
 # Static files like widget.js will be available right away
-npx next start -p 5000 -H 0.0.0.0 &
+npx next start -p "$APP_PORT" -H 0.0.0.0 &
 NEXT_PID=$!
 
 echo "[Startup] Both services starting (Flask PID: $FLASK_PID, Next.js PID: $NEXT_PID)"
