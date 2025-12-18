@@ -437,8 +437,21 @@
     document.head.appendChild(styleEl);
   }
 
-  function createWidget() {
+  let logoLoaded = false;
+
+  function lazyLoadLogo() {
+    if (logoLoaded) return;
+    logoLoaded = true;
     const logoUrl = WIDGET_CONFIG.logoUrl;
+    const avatars = document.querySelectorAll('#jovee-widget-container .avatar img, #jovee-widget-container .jovee-message-avatar img');
+    avatars.forEach(img => {
+      if (!img.src || img.src.includes('data:')) {
+        img.src = logoUrl;
+      }
+    });
+  }
+
+  function createWidget() {
     const container = document.createElement('div');
     container.id = 'jovee-widget-container';
     container.innerHTML = `
@@ -453,7 +466,7 @@
       <div id="jovee-chat-window">
         <div id="jovee-resize-handle" title="Drag to resize"></div>
         <div id="jovee-chat-header">
-          <div class="avatar"><img src="${logoUrl}" alt="Jovee" /></div>
+          <div class="avatar"><img data-src="${WIDGET_CONFIG.logoUrl}" alt="Jovee" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%2303a9f4'/%3E%3C/svg%3E" /></div>
           <div class="info">
             <h3>Jovee</h3>
             <p>Your JoveHeal Guide</p>
@@ -558,15 +571,16 @@
 
   function toggleChat() {
     const bubble = document.getElementById('jovee-chat-bubble');
-    const window = document.getElementById('jovee-chat-window');
-    const isOpen = window.classList.contains('open');
+    const chatWindow = document.getElementById('jovee-chat-window');
+    const isOpen = chatWindow.classList.contains('open');
     
     if (isOpen) {
-      window.classList.remove('open');
+      chatWindow.classList.remove('open');
       bubble.classList.remove('open');
     } else {
-      window.classList.add('open');
+      chatWindow.classList.add('open');
       bubble.classList.add('open');
+      lazyLoadLogo();
       document.getElementById('jovee-chat-input').focus();
     }
   }
@@ -876,9 +890,17 @@
     initResize();
   }
 
+  function deferInit() {
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(initWidget, { timeout: 2000 });
+    } else {
+      setTimeout(initWidget, 100);
+    }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initWidget);
+    document.addEventListener('DOMContentLoaded', deferInit);
   } else {
-    initWidget();
+    deferInit();
   }
 })();
