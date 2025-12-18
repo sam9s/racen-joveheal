@@ -74,19 +74,3 @@ INTERNAL_API_KEY = "J8N05Lhofi7WbWPAJMnKV+VzH5PSqbQZctE+zXsnZB0="
 ADMIN_EMAILS = "sam27sep@gmail.com,shaveta@joveheal.com"
 DASHBOARD_PASSWORD = "Shaveta@098"
 DASHBOARD_EMAIL = "shaveta@joveheal.com"
-
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8501
-externalPort = 3001
-
-[[ports]]
-localPort = 9000
-externalPort = 9000
