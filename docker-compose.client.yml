@@ -1,0 +1,147 @@
+# JoveHeal Client Docker Compose
+# ================================
+#
+# This file uses pre-built Docker images.
+# The source code is NOT included - only compiled containers.
+#
+# SETUP:
+# 1. Create .env file with your secrets (see .env.example)
+# 2. Create Caddyfile (provided separately)
+# 3. Point your domain to your server's IP
+# 4. Run: docker compose -f docker-compose.client.yml up -d
+#
+# IMPORTANT: Replace the image names with the actual Docker Hub images
+# provided to you by the developer.
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: joveheal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-joveheal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-joveheal}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-joveheal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - joveheal-network
+
+  flask:
+    # CHANGE THIS to the actual image provided by developer
+    # Example: sameer9s/joveheal-flask:v1.0
+    image: ${FLASK_IMAGE:-joveheal-flask:latest}
+    container_name: joveheal-flask
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-joveheal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-joveheal}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - DASHBOARD_EMAIL=${DASHBOARD_EMAIL:-}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - vector_db_data:/app/vector_db
+      - knowledge_base_data:/app/knowledge_base
+      - logs_data:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - joveheal-network
+
+  nextjs:
+    # CHANGE THIS to the actual image provided by developer
+    # Example: sameer9s/joveheal-nextjs:v1.0
+    image: ${NEXTJS_IMAGE:-joveheal-nextjs:latest}
+    container_name: joveheal-nextjs
+    restart: unless-stopped
+    depends_on:
+      flask:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - NEXTAUTH_URL=${NEXTAUTH_URL:?NEXTAUTH_URL is required}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - FLASK_BACKEND_URL=http://flask:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - joveheal-network
+
+  admin:
+    # CHANGE THIS to the actual image provided by developer
+    # Example: sameer9s/joveheal-admin:v1.0
+    image: ${ADMIN_IMAGE:-joveheal-admin:latest}
+    container_name: joveheal-admin
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - flask
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-joveheal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-joveheal}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DASHBOARD_EMAIL=${DASHBOARD_EMAIL:-}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-}
+    volumes:
+      - vector_db_data:/app/vector_db
+      - knowledge_base_data:/app/knowledge_base
+    networks:
+      - joveheal-network
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: joveheal-caddy
+    restart: unless-stopped
+    depends_on:
+      - nextjs
+      - flask
+      - admin
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:?DOMAIN is required}
+    networks:
+      - joveheal-network
+
+volumes:
+  postgres_data:
+    driver: local
+  vector_db_data:
+    driver: local
+  knowledge_base_data:
+    driver: local
+  logs_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  joveheal-network:
+    driver: bridge
