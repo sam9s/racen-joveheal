@@ -1,34 +1,28 @@
 #!/bin/bash
-# Production startup script with proper process ordering
-# This ensures Flask backend is ready before Next.js starts serving traffic
+# Production startup script - optimized for fast cold starts
+# Static files (widget.js) are served by Next.js immediately
+# Flask backend starts in parallel
 
-echo "[Startup] Starting Flask backend..."
+echo "[Startup] Starting services in parallel for fast cold start..."
+
+# Start Flask backend in background
 python webhook_server.py &
 FLASK_PID=$!
 
-echo "[Startup] Waiting for Flask backend to be ready..."
-MAX_ATTEMPTS=30
-ATTEMPT=0
-
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    if curl -s http://localhost:8080/health > /dev/null 2>&1; then
-        echo "[Startup] Flask backend is ready!"
-        break
-    fi
-    ATTEMPT=$((ATTEMPT + 1))
-    echo "[Startup] Waiting for Flask... attempt $ATTEMPT/$MAX_ATTEMPTS"
-    sleep 1
-done
-
-if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-    echo "[Startup] WARNING: Flask backend did not respond within timeout, starting Next.js anyway"
-fi
-
-echo "[Startup] Starting Next.js frontend..."
+# Start Next.js immediately - don't wait for Flask
+# Static files like widget.js will be available right away
 npx next start -p 5000 -H 0.0.0.0 &
 NEXT_PID=$!
 
-echo "[Startup] Both services running (Flask PID: $FLASK_PID, Next.js PID: $NEXT_PID)"
+echo "[Startup] Both services starting (Flask PID: $FLASK_PID, Next.js PID: $NEXT_PID)"
 
-# Wait for both processes - if either exits, the container will restart
+# Quick health check for Flask (non-blocking, just for logging)
+sleep 3
+if curl -s http://localhost:8080/health > /dev/null 2>&1; then
+    echo "[Startup] Flask backend ready!"
+else
+    echo "[Startup] Flask still starting (will be ready shortly)..."
+fi
+
+# Wait for both processes
 wait

@@ -1,6 +1,30 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  async headers() {
+    return [
+      {
+        source: '/widget.js',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=86400' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+        ],
+      },
+      {
+        source: '/widget.min.js',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600, stale-while-revalidate=86400' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+        ],
+      },
+      {
+        source: '/jovee-logo.png',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400' },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

@@ -892,9 +892,9 @@
 
   function deferInit() {
     if ('requestIdleCallback' in window) {
-      requestIdleCallback(initWidget, { timeout: 2000 });
+      requestIdleCallback(initWidget, { timeout: 500 });
     } else {
-      setTimeout(initWidget, 100);
+      setTimeout(initWidget, 0);
     }
   }
 
