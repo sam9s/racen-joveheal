@@ -241,7 +241,7 @@ def render_admin_panel():
     
     st.divider()
     
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Knowledge Base", "Upload Documents", "Conversation Logs", "Analytics", "Embed Widget", "Channels"])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Knowledge Base", "Upload Documents", "Conversation Logs", "Analytics", "Embed Widget", "Channels", "Monitoring"])
     
     with tab1:
         st.subheader("Knowledge Base Status")
@@ -644,6 +644,138 @@ function toggleJoveHealChat() {{
         st.markdown("### Webhook Server Status")
         st.info("The webhook server runs on port 8080 to handle incoming messages from external platforms.")
         st.markdown("Make sure to start the webhook server workflow for multi-channel messaging to work.")
+    
+    with tab7:
+        st.subheader("Production Monitoring")
+        st.markdown("Real-time uptime and performance monitoring via UptimeRobot.")
+        
+        uptimerobot_api_key = os.environ.get("UPTIMEROBOT_API_KEY")
+        
+        if not uptimerobot_api_key:
+            st.warning("UptimeRobot API key not configured.")
+            st.markdown("""
+            **To enable monitoring:**
+            1. Sign up at [uptimerobot.com](https://uptimerobot.com) (free)
+            2. Add monitors for your production URLs
+            3. Get your API key from Dashboard > Integrations & API
+            4. Add `UPTIMEROBOT_API_KEY` to your Replit secrets
+            """)
+        else:
+            import requests
+            
+            if st.button("Refresh Monitoring Data"):
+                st.rerun()
+            
+            with st.spinner("Fetching monitoring data..."):
+                try:
+                    url = "https://api.uptimerobot.com/v2/getMonitors"
+                    payload = {
+                        "api_key": uptimerobot_api_key,
+                        "format": "json",
+                        "logs": "1",
+                        "logs_limit": "10",
+                        "response_times": "1",
+                        "response_times_limit": "24",
+                        "custom_uptime_ratios": "1-7-30-90"
+                    }
+                    
+                    response = requests.post(url, data=payload, timeout=10)
+                    data = response.json()
+                    
+                    if data.get("stat") == "ok":
+                        monitors = data.get("monitors", [])
+                        
+                        if not monitors:
+                            st.info("No monitors configured in UptimeRobot yet.")
+                        else:
+                            status_map = {0: "Paused", 1: "Not checked", 2: "Up", 8: "Seems down", 9: "Down"}
+                            status_colors = {0: "gray", 1: "gray", 2: "green", 8: "orange", 9: "red"}
+                            
+                            st.markdown("### Current Status")
+                            
+                            cols = st.columns(len(monitors))
+                            for idx, monitor in enumerate(monitors):
+                                status = monitor.get("status", 0)
+                                status_text = status_map.get(status, "Unknown")
+                                
+                                with cols[idx]:
+                                    if status == 2:
+                                        st.success(f"**{monitor.get('friendly_name', 'Monitor')}**")
+                                    elif status in [8, 9]:
+                                        st.error(f"**{monitor.get('friendly_name', 'Monitor')}**")
+                                    else:
+                                        st.warning(f"**{monitor.get('friendly_name', 'Monitor')}**")
+                                    st.caption(status_text)
+                            
+                            st.divider()
+                            
+                            st.markdown("### Uptime Statistics")
+                            
+                            for monitor in monitors:
+                                uptime_ratios = monitor.get("custom_uptime_ratio", "").split("-")
+                                friendly_name = monitor.get("friendly_name", "Monitor")
+                                
+                                with st.expander(f"{friendly_name}", expanded=True):
+                                    col1, col2, col3, col4 = st.columns(4)
+                                    
+                                    periods = ["24h", "7d", "30d", "90d"]
+                                    for i, (col, period) in enumerate(zip([col1, col2, col3, col4], periods)):
+                                        with col:
+                                            if i < len(uptime_ratios):
+                                                uptime = float(uptime_ratios[i])
+                                                st.metric(period, f"{uptime:.2f}%")
+                                            else:
+                                                st.metric(period, "N/A")
+                                    
+                                    st.caption(f"URL: {monitor.get('url', 'N/A')}")
+                                    
+                                    response_times = monitor.get("response_times", [])
+                                    if response_times:
+                                        avg_response = sum(rt.get("value", 0) for rt in response_times) / len(response_times)
+                                        st.markdown(f"**Avg Response Time:** {avg_response:.0f}ms")
+                            
+                            st.divider()
+                            
+                            st.markdown("### Recent Incidents")
+                            
+                            has_incidents = False
+                            for monitor in monitors:
+                                logs = monitor.get("logs", [])
+                                down_logs = [log for log in logs if log.get("type") in [1, 2]]
+                                
+                                if down_logs:
+                                    has_incidents = True
+                                    st.markdown(f"**{monitor.get('friendly_name')}:**")
+                                    for log in down_logs[:5]:
+                                        log_type = "Down" if log.get("type") == 1 else "Up"
+                                        timestamp = datetime.fromtimestamp(log.get("datetime", 0))
+                                        duration_mins = log.get("duration", 0) // 60
+                                        st.text(f"  {timestamp.strftime('%Y-%m-%d %H:%M')} - {log_type} (Duration: {duration_mins} min)")
+                            
+                            if not has_incidents:
+                                st.success("No incidents recorded in recent history.")
+                    else:
+                        st.error(f"API Error: {data.get('error', {}).get('message', 'Unknown error')}")
+                        
+                except requests.exceptions.Timeout:
+                    st.error("Request timed out. Please try again.")
+                except Exception as e:
+                    st.error(f"Failed to fetch monitoring data: {str(e)}")
+            
+            st.divider()
+            
+            st.markdown("### Monitoring Setup")
+            st.markdown("""
+            **Recommended monitors for JoveHeal:**
+            - Homepage: `https://your-app.replit.app/`
+            - Health Check: `https://your-app.replit.app/health`
+            - Widget: `https://your-app.replit.app/widget.js`
+            
+            **Alert Configuration:**
+            - Set up Pushover for instant push notifications
+            - Configure email alerts as backup
+            - Use 5-minute check intervals for production
+            """)
 
 
 def main():
