@@ -190,11 +190,26 @@ To sell/distribute the application without exposing source code:
 3. Give client `docker-compose.client.yml` + `Caddyfile` + `.env.example`
 4. Client pulls pre-built images (no source code access)
 
+## Incident History
+
+### Dec 18, 2025 - Deployment Failure (3+ hours)
+- **Cause**: Next.js backgrounded in start_production.sh
+- **Fix**: Changed to `exec npx next start` (foreground)
+- **RCA**: `docs/incident_report_dec18_2025.md`
+
+### Dec 19, 2025 - Chat Failure (~30 min)
+- **Cause**: Flask not accessible externally, no health route in Next.js
+- **Fix**: Added /health to Next.js, improved startup guards
+- **RCA**: `docs/incident_report_dec19_2025.md`
+
 ## Pending Items
 
-### URGENT: Client Concern (Dec 18, 2025)
+### CRITICAL: UptimeRobot Monitoring (OVERDUE)
+This has caused two incidents to go undetected until user/client reported. Set up immediately:
+- Monitor: https://jove-heal-chatbot--sam9s.replit.app/
+- Monitor: https://jove-heal-chatbot--sam9s.replit.app/health
+- Monitor: https://jove-heal-chatbot--sam9s.replit.app/widget.js
+
+### Client Concern (Dec 18, 2025)
 Client raised a concern during the production outage that needs to be discussed.
 **REMINDER**: Ask Sam about this client concern when resuming work.
-
-### UptimeRobot Monitoring (Still Pending)
-Set up monitoring for production URLs - this was identified as urgent but not yet completed.
