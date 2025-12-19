@@ -28,19 +28,35 @@ from knowledge_base import initialize_knowledge_base, get_knowledge_base_stats
 app = Flask(__name__)
 CORS(app)
 
+KNOWLEDGE_BASE_READY = False
+
 def init_knowledge_base_on_startup():
-    """Initialize knowledge base on startup if empty (for autoscale cold starts)."""
+    """Initialize knowledge base on startup if empty (for autoscale cold starts).
+    
+    FAIL FAST: If knowledge base cannot be initialized, exit with error.
+    This prevents serving degraded traffic with missing vectors.
+    """
+    global KNOWLEDGE_BASE_READY
     try:
         stats = get_knowledge_base_stats()
         if stats["total_chunks"] == 0:
             print("[Startup] Knowledge base is empty, rebuilding from website...")
             initialize_knowledge_base(force_refresh=False, enable_web_scrape=True)
             stats = get_knowledge_base_stats()
+            if stats["total_chunks"] == 0:
+                print("[CRITICAL] Knowledge base rebuild failed - no chunks available!")
+                print("[CRITICAL] Exiting to prevent serving degraded traffic.")
+                import sys
+                sys.exit(1)
             print(f"[Startup] Knowledge base rebuilt with {stats['total_chunks']} chunks")
         else:
             print(f"[Startup] Knowledge base ready with {stats['total_chunks']} chunks")
+        KNOWLEDGE_BASE_READY = True
     except Exception as e:
-        print(f"[Startup] Warning: Failed to initialize knowledge base: {e}")
+        print(f"[CRITICAL] Failed to initialize knowledge base: {e}")
+        print("[CRITICAL] Exiting to prevent serving degraded traffic.")
+        import sys
+        sys.exit(1)
 
 init_knowledge_base_on_startup()
 
@@ -49,7 +65,16 @@ conversation_histories = {}
 
 @app.route("/health", methods=["GET"])
 def health_check():
-    """Health check endpoint."""
+    """Health check endpoint.
+    
+    Returns unhealthy if knowledge base is not ready.
+    """
+    if not KNOWLEDGE_BASE_READY:
+        return jsonify({
+            "status": "unhealthy",
+            "service": "R.A.C.E.N API Server",
+            "reason": "Knowledge base not initialized"
+        }), 503
     return jsonify({"status": "healthy", "service": "R.A.C.E.N API Server"})
 
 
