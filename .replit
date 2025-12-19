@@ -5,7 +5,7 @@ channel = "stable-25_05"
 packages = ["ffmpeg", "freetype", "glibcLocales", "imagemagick", "lcms2", "libev", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "gce"
 run = ["sh", "-c", "bash start_production.sh"]
 build = ["sh", "-c", "npx next build"]
 
