@@ -6,6 +6,8 @@ The JoveHeal Wellness Chatbot, named RACEN (Real-time Advisor for Coaching, Educ
 ## User Preferences
 I want the agent to focus on high-level features and architectural decisions, avoiding granular implementation specifics unless directly related to a core architectural choice. Please consolidate redundant information and prioritize clarity and conciseness. I prefer a clear, direct communication style. Do not make changes to the existing file structure without explicit approval.
 
+**Re-publishing Reminder**: Always proactively remind me to re-publish the app after making any code changes (backend or frontend). Code changes only go live after publishing.
+
 ## System Architecture
 
 ### UI/UX Decisions
