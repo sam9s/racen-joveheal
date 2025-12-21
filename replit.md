@@ -1,7 +1,7 @@
 # JoveHeal Wellness Chatbot
 
 ## Overview
-The JoveHeal Wellness Chatbot is a RAG-based web chatbot designed for the JoveHeal wellness coaching business. Its primary purpose is to act as a front-line information source for website visitors, answering questions about programs, services, and offerings by leveraging a knowledge base derived from website content and uploaded documents. This MVP aims to enhance user engagement and provide immediate, accurate information about JoveHeal's services.
+The JoveHeal Wellness Chatbot, named RACEN (Real-time Advisor for Coaching, Education & Navigation), is a RAG-based web chatbot for the JoveHeal wellness coaching business. Its primary purpose is to serve as a front-line information source for website visitors, answering questions about programs and services using a knowledge base derived from website content and uploaded documents. A key component is the SOMERA Coaching Assistant, an empathetic AI coach designed to provide a compelling first-touch coaching experience aligned with Shweta's 4-step framework and emotional pattern recognition. This project aims to enhance user engagement, provide immediate, accurate information, and guide users towards JoveHeal's coaching services.
 
 ## User Preferences
 I want the agent to focus on high-level features and architectural decisions, avoiding granular implementation specifics unless directly related to a core architectural choice. Please consolidate redundant information and prioritize clarity and conciseness. I prefer a clear, direct communication style. Do not make changes to the existing file structure without explicit approval.
@@ -9,207 +9,43 @@ I want the agent to focus on high-level features and architectural decisions, av
 ## System Architecture
 
 ### UI/UX Decisions
-The chatbot, named RACEN (Real-time Advisor for Coaching, Education & Navigation), has a defined personality: warm, empathetic, and guide-like, using plain, human-friendly language. Responses are formatted for readability (short sentences, 2-5 sentences for facts) with empathy prioritized for emotional queries. The frontend is built with Next.js 14, TypeScript, and Tailwind CSS, featuring a branded R.A.C.E.N interface. Streaming responses are implemented using Server-Sent Events (SSE) for a real-time, ChatGPT-like user experience. Clickable links are automatically generated for mentioned JoveHeal programs and pages.
+RACEN presents a warm, empathetic, and guide-like personality, using plain language. Responses are formatted for readability, and emotional queries are handled with empathy. The frontend is built with Next.js 14, TypeScript, and Tailwind CSS, featuring a branded R.A.C.E.N interface. Streaming responses are implemented via Server-Sent Events (SSE) for a real-time user experience. Clickable links are automatically generated for mentioned JoveHeal programs. SOMERA has a distinct purple/pink themed UI.
 
 ### Technical Implementations
-The core system uses a Retrieval Augmented Generation (RAG) approach.
-- **SOMERA Coaching Assistant**: A separate empathetic coaching interface at `/somera` that uses Shweta's coaching content from video transcripts. Features streaming SSE responses, purple/pink themed UI, and independent sessions from Jove. Backend endpoints at `/api/somera` and `/api/somera/stream`.
-  
-  **SOMERA's Core Objective (Updated Dec 2024):**
-  SOMERA must behave like a COACH, not a suggestion agent. The goal is to be a compelling first-touch coaching experience that draws users toward Shweta's actual coaching services.
-  
-  **Coaching Behavior Model:**
-  1. NEVER jump straight to solutions - users don't want direct answers
-  2. Start with EMPATHY ("I hear you, that sounds difficult...")
-  3. Ask TRIAGE QUESTIONS to understand deeper ("Would you like to share more about what's happening?")
-  4. LISTEN and probe further before offering any guidance
-  5. Help users find THEIR OWN solution (they already know it, just need to realize it)
-  6. Use soft, permission-based language for US audience ("I'm sensing you might be feeling...")
-  
-  **Shweta's JoveHeal 4-Step Framework:**
-  | Step | Description |
-  |------|-------------|
-  | 1. Acknowledgement | Understand what they're going through, patterns, duration |
-  | 2. Decision | Help them decide: "Do you want to stay like this or change?" |
-  | 3. Release | Various modalities based on person's need (takes most time) |
-  | 4. Recalibration | Embodiment of future self without the problem |
-  
-  **Three Pillars:** Career, Relationship, Wellness
-  
-  **Key Principle:** "Coaching is all about listening. No one needs a solution - they need to be heard first."
-  
-  **Cross-Pillar Emotional Pattern System (Dec 2024):**
-  SOMERA now understands that emotions don't sit in silos. Key enhancements:
-  - `emotional_patterns.py`: Maps career symptoms to childhood root causes (e.g., "can't say no" → "conditional love in childhood")
-  - Enhanced retrieval: Searches by emotional pattern FIRST, then filters by pillar
-  - Root cause probing: SOMERA can gently explore if patterns show up across career, relationships, and wellness
-  - The "Blueprint" concept: Subconscious beliefs, conditioning, and patterns that shape reactions
-  
-  **Ingested Coaching Content:**
-  - Career Healing Course Masterclass (90 chunks, 9 emotional patterns, 10 root causes, all 3 pillars detected)
-  - 1-to-1 Educational Concepts (11 chunks) - conceptual frameworks only, no therapeutic scripts
-    - Concepts: One Win opening, Blueprint concept, Time patterns, Money energy, Power reclamation, Chocolate analogy, Approval patterns, Standing for yourself, Cross-pillar awareness
-  
-  **LLM Critic - Dynamic Language Quality Filter (Dec 2024):**
-  Instead of brittle regex patterns, SOMERA now uses an AI-powered "critic" that reviews every response before sending to users. The critic dynamically enforces:
-  - No subjective time judgments ("X years is a long time", "lengthy journey", etc.)
-  - Warm, empathetic tone (not clinical or robotic)
-  - Coaching style (asks questions, not advice-giving)
-  - Non-judgmental language overall
-  
-  The critic uses GPT-4o-mini to understand language nuance and correct any violations. For streaming responses, a "correction" event replaces the displayed text if needed. All corrections are logged to `logs/guardrails/` for monitoring.
-  
-  **Live Session Referral Boundaries:**
-  SOMERA provides coaching support ONLY. These topics require live sessions with Shweta:
-  - Deep trauma/regression work
-  - Energy healing, chakra work, spiritual practices
-  - Guided meditation or altered state work
-  - Physical healing claims
-  - Ancestral/generational healing
-  - "Blueprint" clearing
-  
-  When these topics arise, SOMERA refers users to book a Discovery Call.
-- **Persistent Conversation Memory**: Users can sign in with Google to save conversations to a PostgreSQL database, allowing RACEN to remember past interactions and provide personalized greetings and context-aware responses.
-- **Personalized Greetings**: For signed-in users, RACEN offers first-name addressing, welcome-back messages with context from previous conversations, and new user introductions.
-- **Smart Conversation Summaries**: LLM-powered summaries of conversations are generated and stored, enabling RACEN to recall specific topics and recommendations for returning users.
-- **LLM-Powered Typo Fixer**: Utilizes GPT-4o-mini to correct user typos before RAG retrieval, ensuring accurate search results from the ChromaDB vector store.
-- **Knowledge Base**: Supports PDF and text document uploads, and ingests website content. ChromaDB is used for vector storage to enable semantic search.
-- **Safety Guardrails**: Includes strict filtering for medical/mental health content, crisis keyword detection with safe redirection, and logging of flagged conversations. SOMERA-specific guardrails include live session referral detection (26+ regex patterns) and non-judgmental time language filters. All guardrail activations are logged to `logs/guardrails/` in JSONL format for monitoring and debugging.
-  
-  **Documentation:**
-  - `docs/somera_production_roadmap.md`: Future production enhancements (NLP intent models, tokenization, varied responses) with decision triggers
-  - `docs/somera_guardrails_test_report.md`: Client-ready test report showing guardrails verification
-- **Multi-Channel Support**: Integrates with WhatsApp (via Twilio) and Instagram (via Meta Graph API), along with a direct API for custom integrations, maintaining session management and unified logging across channels.
-- **Embeddable Widget**: A standalone JavaScript widget (`/widget.js`) that can be embedded on external websites (like Kajabi) with a single script tag. Features a floating chat bubble, streaming responses, and XSS-safe rendering. CORS headers configured for joveheal.com and Kajabi domains.
-- **Google OAuth Authentication**: Implemented using NextAuth.js for user sign-in, linking conversations to user accounts in PostgreSQL. Server-side session verification and an internal API key secure communication between Next.js and Flask.
-- **Production Reliability**: Includes retry logic on the frontend, a robust startup script (`start_production.sh`) to ensure Flask is healthy before Next.js, a Flask `/health` endpoint, and an auto-rebuild mechanism for the ChromaDB knowledge base on cold starts to ensure data persistence.
+The system utilizes a Retrieval Augmented Generation (RAG) approach.
+- **SOMERA Coaching Assistant**: An empathetic coaching interface at `/somera` using Shweta's coaching content. It functions as a coach, not an advice giver, focusing on empathy, triage questions, active listening, and guiding users to their own solutions, adhering to Shweta's 4-Step Framework and the "Three Pillars" (Career, Relationship, Wellness). It incorporates an "Emotional Pattern System" to map symptoms to root causes and an LLM Critic for dynamic language quality filtering, ensuring a coaching tone and adherence to guardrails.
+- **Persistent Conversation Memory**: Google-signed-in users can save conversations to a PostgreSQL database for personalized greetings and context.
+- **Personalized Greetings**: For signed-in users, RACEN offers first-name addressing, welcome-back messages, and new user introductions.
+- **Smart Conversation Summaries**: LLM-powered summaries enable recall of past topics and recommendations.
+- **LLM-Powered Typo Fixer**: Uses GPT-4o-mini to correct user input before RAG retrieval.
+- **Knowledge Base**: Supports PDF/text document uploads and website content ingestion, using ChromaDB for vector storage.
+- **Safety Guardrails**: Includes filtering for medical/mental health content, crisis keyword detection with redirection, and logging. SOMERA has specific guardrails for live session referrals and non-judgmental language.
+- **Multi-Channel Support**: Integrates with WhatsApp (Twilio) and Instagram (Meta Graph API) with unified session management and logging.
+- **Embeddable Widget**: A standalone JavaScript widget (`/widget.js`) for external websites (e.g., Kajabi) with XSS-safe rendering.
+- **Google OAuth Authentication**: Uses NextAuth.js for user sign-in and links conversations to user accounts in PostgreSQL.
+- **Production Reliability**: Includes frontend retry logic, a robust `start_production.sh` script, a Flask `/health` endpoint, and auto-rebuild of the ChromaDB knowledge base on cold starts.
+- **Admin Dashboard Transcription**: A feature within the admin dashboard to transcribe audio/video files using OpenAI Whisper API, saving transcripts to `transcripts/`.
 
 ### Feature Specifications
-- Natural language Q&A with multi-turn context awareness.
+- Natural language Q&A with multi-turn context.
 - Source attribution for answers.
-- User feedback (thumbs up/down with comments).
+- User feedback (thumbs up/down).
 - Admin Panel for knowledge base management, document upload, conversation logs, analytics, and multi-channel configuration.
 - Strict safety policies: no medical/psychological advice, crisis redirection.
 
 ### System Design Choices
-The architecture separates concerns into a Next.js frontend (port 5000), a Flask backend for webhooks and chat API (port 8080), and a Streamlit admin panel (port 5001). PostgreSQL is the chosen relational database for persistent storage, with SQLAlchemy ORM for data modeling. OpenAI's `gpt-4o-mini` is used as the primary LLM via Replit AI Integrations. ChromaDB handles vector storage. The system is designed to be resilient to Replit's autoscale features through robust startup procedures and knowledge base re-initialization.
+The architecture separates concerns into a Next.js frontend (port 5000), a Flask backend for webhooks and chat API (port 8080), and a Streamlit admin panel (port 5001). PostgreSQL is the relational database with SQLAlchemy ORM. OpenAI's `gpt-4o-mini` is the primary LLM via Replit AI Integrations. ChromaDB is used for vector storage. The system is designed for resilience within Replit's autoscale environment.
 
 ## External Dependencies
-- **LLM Provider**: OpenAI (via Replit AI Integrations, specifically `gpt-4o-mini`)
+- **LLM Provider**: OpenAI (`gpt-4o-mini` via Replit AI Integrations)
 - **Vector Database**: ChromaDB
 - **Relational Database**: PostgreSQL
-- **Frontend Framework**: Next.js (with React, TypeScript, Tailwind CSS)
+- **Frontend Framework**: Next.js (React, TypeScript, Tailwind CSS)
 - **Backend Framework**: Flask
 - **Admin Panel Framework**: Streamlit
-- **Authentication**: NextAuth.js (with Google OAuth provider)
+- **Authentication**: NextAuth.js (Google OAuth)
 - **PDF Processing**: PyPDF
 - **WhatsApp Integration**: Twilio SDK
 - **Instagram Integration**: Meta Graph API
 - **Data Analysis**: Pandas (for analytics dashboard)
-
-## Deployment Configuration (CRITICAL)
-
-### Autoscale Requirements
-**IMPORTANT:** Replit Autoscale monitors PID 1 (the main process). If PID 1 exits, the deployment is torn down and returns 404.
-
-**NEVER** background the main service in `start_production.sh`. Always use `exec` to keep the process alive:
-
-```bash
-# CORRECT - keeps deployment alive
-exec npx next start -p "$APP_PORT" -H 0.0.0.0
-
-# WRONG - shell exits, deployment dies
-npx next start -p "$APP_PORT" -H 0.0.0.0 &
-```
-
-### Current Working start_production.sh Pattern
-1. Start Flask in background first (`python webhook_server.py &`)
-2. Run Next.js in foreground with `exec`
-3. Use `${PORT:-5000}` for the app port (Autoscale provides $PORT)
-
-### Pre-Deployment Checklist
-- [ ] Verify `start_production.sh` uses `exec` for main service
-- [ ] Run `npx next build` and verify `.next` folder exists
-- [ ] Test `python webhook_server.py` starts without errors
-- [ ] After publish, verify `/health` returns 200
-
-### Deployment Recovery
-If production goes down:
-1. Check deployment logs in Publishing tab
-2. Verify internal dev environment works
-3. Check start_production.sh hasn't been changed
-4. Use Replit Checkpoints to rollback if needed
-
-### Incident Documentation
-- `docs/incident_report_dec18_2025.md`: Full RCA for Dec 18, 2025 outage
-
-### Monitoring (Required)
-Set up UptimeRobot (free) to monitor:
-- Homepage: https://jove-heal-chatbot--sam9s.replit.app/
-- Health: https://jove-heal-chatbot--sam9s.replit.app/health
-- Widget: https://jove-heal-chatbot--sam9s.replit.app/widget.js
-
-## Disaster Recovery
-
-### Full Documentation
-- `docs/disaster_recovery_plan.md`: Complete step-by-step recovery guide
-
-### Quick Backup
-```bash
-python disaster_recovery/backup.py
-```
-Creates compressed archive with PostgreSQL, ChromaDB, and knowledge base.
-
-### Recovery Options
-1. **New Replit Instance**: Import from Git, restore backup (~15 min)
-2. **External VPS with Docker**: Use `docker-compose.yml` (~30 min)
-3. **Manual Rebuild**: Clone Git, initialize empty database, rebuild knowledge base
-
-### Critical Files for External Deployment
-- `docker-compose.yml`: Complete Docker stack configuration (Nginx)
-- `docker-compose.caddy.yml`: Caddy version (simplest, auto-SSL)
-- `docker-compose.dokploy.yml`: Dokploy/Traefik version
-- `docker-compose.client.yml`: Client distribution (uses pre-built images, hides source code)
-- `Dockerfile.flask`: Flask backend container
-- `Dockerfile.nextjs`: Next.js frontend container
-- `Dockerfile.streamlit`: Admin panel container
-- `nginx.conf`: Reverse proxy configuration (for docker-compose.yml)
-- `Caddyfile`: Caddy configuration (for docker-compose.caddy.yml)
-- `.env.example`: Environment variables template
-
-### Deployment Documentation
-- `docs/deployment_self_hosted.md`: Self-hosted VPS deployment guide
-- `docs/deployment_client_handoff.md`: Client-facing deployment instructions
-- `docs/publishing_docker_images.md`: How to build/push Docker images to Docker Hub
-- `docs/dokploy_deployment_guide.md`: Dokploy-specific deployment guide
-
-### Business Distribution Model
-To sell/distribute the application without exposing source code:
-1. Build Docker images locally from source
-2. Push to Docker Hub (your account)
-3. Give client `docker-compose.client.yml` + `Caddyfile` + `.env.example`
-4. Client pulls pre-built images (no source code access)
-
-## Incident History
-
-### Dec 18, 2025 - Deployment Failure (3+ hours)
-- **Cause**: Next.js backgrounded in start_production.sh
-- **Fix**: Changed to `exec npx next start` (foreground)
-- **RCA**: `docs/incident_report_dec18_2025.md`
-
-### Dec 19, 2025 - Chat Failure (~30 min)
-- **Cause**: Flask not accessible externally, no health route in Next.js
-- **Fix**: Added /health to Next.js, improved startup guards
-- **RCA**: `docs/incident_report_dec19_2025.md`
-
-## Pending Items
-
-### CRITICAL: UptimeRobot Monitoring (OVERDUE)
-This has caused two incidents to go undetected until user/client reported. Set up immediately:
-- Monitor: https://jove-heal-chatbot--sam9s.replit.app/
-- Monitor: https://jove-heal-chatbot--sam9s.replit.app/health
-- Monitor: https://jove-heal-chatbot--sam9s.replit.app/widget.js
-
-### Client Concern (Dec 18, 2025)
-Client raised a concern during the production outage that needs to be discussed.
-**REMINDER**: Ask Sam about this client concern when resuming work.
+- **Transcription**: OpenAI Whisper API
