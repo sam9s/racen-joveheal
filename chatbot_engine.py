@@ -245,7 +245,7 @@ def generate_response(
             "error": "openai_not_configured"
         }
     
-    should_redirect, redirect_response = apply_safety_filters(user_message)
+    should_redirect, redirect_response = apply_safety_filters(user_message, is_somera=True)
     
     if should_redirect:
         return {
@@ -378,7 +378,7 @@ def generate_response_stream(
         yield {"type": "error", "content": "I'm temporarily unavailable. Please try again later."}
         return
     
-    should_redirect, redirect_response = apply_safety_filters(user_message)
+    should_redirect, redirect_response = apply_safety_filters(user_message, is_somera=True)
     
     if should_redirect:
         yield {"type": "content", "content": redirect_response}
