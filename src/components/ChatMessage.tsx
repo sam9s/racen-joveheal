@@ -17,29 +17,45 @@ interface ChatMessageProps {
   onFeedback: (messageId: string, feedback: 'up' | 'down', comment?: string) => void;
 }
 
-function renderMarkdownLinks(text: string): React.ReactNode[] {
-  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+function renderLinks(text: string): React.ReactNode[] {
+  const combinedRegex = /(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s]+)/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match;
 
-  while ((match = linkRegex.exec(text)) !== null) {
+  while ((match = combinedRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
     
-    const [, linkText, url] = match;
-    parts.push(
-      <a
-        key={match.index}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
-      >
-        {linkText}
-      </a>
-    );
+    if (match[1]) {
+      const linkText = match[2];
+      const url = match[3];
+      parts.push(
+        <a
+          key={match.index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
+        >
+          {linkText}
+        </a>
+      );
+    } else if (match[4]) {
+      const url = match[4];
+      parts.push(
+        <a
+          key={match.index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors break-all"
+        >
+          {url}
+        </a>
+      );
+    }
     
     lastIndex = match.index + match[0].length;
   }
@@ -102,7 +118,7 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
         }`}
       >
         <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed">
-          {renderMarkdownLinks(message.content)}
+          {renderLinks(message.content)}
         </div>
         
         {!isUser && (
