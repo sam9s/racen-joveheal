@@ -68,7 +68,7 @@ const COLORS = ['#03a9f4', '#4fc3f7', '#81d4fa', '#b3e5fc'];
 
 export default function AdminDashboard() {
   const { status } = useSession();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'conversations' | 'monitoring'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'conversations' | 'monitoring' | 'transcription'>('analytics');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
@@ -417,6 +417,19 @@ export default function AdminDashboard() {
             </svg>
             Monitoring
           </button>
+          <button
+            onClick={() => setActiveTab('transcription')}
+            className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'transcription'
+                ? 'bg-cyan-500 text-white'
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+            Transcription
+          </button>
         </div>
 
         {activeTab === 'analytics' ? (
@@ -432,8 +445,10 @@ export default function AdminDashboard() {
             formatDate={formatDate}
             getChannelBadgeColor={getChannelBadgeColor}
           />
-        ) : (
+        ) : activeTab === 'monitoring' ? (
           <MonitoringView />
+        ) : (
+          <TranscriptionView />
         )}
       </div>
     </div>
@@ -762,6 +777,190 @@ interface MonitoringData {
   stat: string;
   monitors: Monitor[];
   error?: { message: string };
+}
+
+function TranscriptionView() {
+  const [file, setFile] = useState<File | null>(null);
+  const [outputName, setOutputName] = useState('');
+  const [transcribing, setTranscribing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [transcript, setTranscript] = useState('');
+  const [error, setError] = useState('');
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setOutputName(selectedFile.name.replace(/\.[^/.]+$/, ''));
+      setError('');
+    }
+  };
+
+  const handleTranscribe = async () => {
+    if (!file) return;
+
+    setTranscribing(true);
+    setProgress(10);
+    setError('');
+    setTranscript('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('outputName', outputName);
+
+      setProgress(30);
+
+      const response = await fetch('/api/admin/transcription', {
+        method: 'POST',
+        body: formData,
+      });
+
+      setProgress(80);
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Transcription failed');
+      }
+
+      const result = await response.json();
+      setTranscript(result.transcript);
+      setProgress(100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Transcription failed');
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!transcript) return;
+    const blob = new Blob([transcript], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${outputName}_transcript.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopy = async () => {
+    if (!transcript) return;
+    await navigator.clipboard.writeText(transcript);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+        <h2 className="text-xl font-semibold text-white mb-4">Video/Audio Transcription</h2>
+        <p className="text-gray-400 mb-6">
+          Upload a video or audio file to transcribe it using OpenAI Whisper. 
+          Supported formats: MP4, MOV, AVI, MKV, MP3, WAV, M4A, OGG, WebM
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Select File</label>
+            <input
+              type="file"
+              accept=".mp4,.mov,.avi,.mkv,.mp3,.wav,.m4a,.ogg,.webm"
+              onChange={handleFileChange}
+              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-cyan-500 file:text-white file:cursor-pointer hover:file:bg-cyan-600"
+            />
+          </div>
+
+          {file && (
+            <>
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Output Name</label>
+                <input
+                  type="text"
+                  value={outputName}
+                  onChange={(e) => setOutputName(e.target.value)}
+                  placeholder="transcript_name"
+                  className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <p className="text-gray-400 text-sm">
+                  📁 {file.name} ({(file.size / (1024 * 1024)).toFixed(1)} MB)
+                </p>
+              </div>
+
+              <button
+                onClick={handleTranscribe}
+                disabled={transcribing}
+                className="w-full bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-500/50 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {transcribing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    Transcribing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    Transcribe
+                  </>
+                )}
+              </button>
+            </>
+          )}
+
+          {transcribing && (
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div
+                className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
+              <p className="text-red-400">{error}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {transcript && (
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">Transcript</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCopy}
+                className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy
+              </button>
+              <button
+                onClick={handleDownload}
+                className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={transcript}
+            readOnly
+            className="w-full h-96 bg-gray-900/50 border border-gray-700 rounded-lg p-4 text-gray-200 font-mono text-sm resize-none focus:outline-none"
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MonitoringView() {

@@ -886,6 +886,125 @@ def admin_conversation_detail(session_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/transcribe", methods=["POST"])
+def transcribe_audio():
+    """Transcribe audio/video file using OpenAI Whisper API."""
+    import tempfile
+    import subprocess
+    import math
+    from openai import OpenAI
+    
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files['file']
+    output_name = request.form.get('outputName', 'transcript')
+    
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return jsonify({"error": "OpenAI API key not configured"}), 500
+    
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = os.path.join(temp_dir, file.filename)
+            file.save(input_path)
+            
+            video_extensions = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
+            file_ext = os.path.splitext(file.filename)[1].lower()
+            
+            audio_path = os.path.join(temp_dir, "audio.mp3")
+            cmd = [
+                "ffmpeg", "-i", input_path,
+                "-vn", "-acodec", "libmp3lame", "-ab", "64k", "-ar", "16000",
+                "-y", audio_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            
+            if result.returncode != 0:
+                print(f"FFmpeg error: {result.stderr}")
+                return jsonify({"error": f"Failed to extract audio: {result.stderr[:200]}"}), 500
+            
+            if not os.path.exists(audio_path):
+                return jsonify({"error": "Failed to extract audio - output file not created"}), 500
+            
+            def get_audio_duration(path):
+                try:
+                    cmd = [
+                        "ffprobe", "-v", "error",
+                        "-show_entries", "format=duration",
+                        "-of", "default=noprint_wrappers=1:nokey=1",
+                        path
+                    ]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                    if result.returncode != 0:
+                        print(f"FFprobe error: {result.stderr}")
+                        return 0
+                    return float(result.stdout.strip())
+                except Exception as e:
+                    print(f"Duration detection error: {e}")
+                    return 0
+            
+            duration = get_audio_duration(audio_path)
+            chunk_duration = 600
+            num_chunks = max(1, math.ceil(duration / chunk_duration))
+            
+            if num_chunks == 1:
+                chunks = [audio_path]
+            else:
+                chunks = []
+                for i in range(num_chunks):
+                    start_time = i * chunk_duration
+                    chunk_path = os.path.join(temp_dir, f"chunk_{i:03d}.mp3")
+                    cmd = [
+                        "ffmpeg", "-i", audio_path,
+                        "-ss", str(start_time),
+                        "-t", str(chunk_duration),
+                        "-acodec", "libmp3lame", "-ab", "64k", "-ar", "16000",
+                        "-y", chunk_path
+                    ]
+                    chunk_result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                    if chunk_result.returncode != 0:
+                        print(f"Chunk {i} ffmpeg error: {chunk_result.stderr}")
+                    if os.path.exists(chunk_path):
+                        chunks.append(chunk_path)
+            
+            client = OpenAI(api_key=api_key)
+            all_transcripts = []
+            
+            for chunk_path in chunks:
+                with open(chunk_path, "rb") as audio_file:
+                    transcript = client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        response_format="text"
+                    )
+                    all_transcripts.append(transcript)
+            
+            full_transcript = "\n\n".join(all_transcripts)
+            
+            transcript_path = os.path.join("transcripts", f"{output_name}_transcript.txt")
+            os.makedirs("transcripts", exist_ok=True)
+            with open(transcript_path, "w") as f:
+                f.write(full_transcript)
+            
+            return jsonify({
+                "transcript": full_transcript,
+                "duration_minutes": duration / 60,
+                "chunks": len(chunks),
+                "saved_to": transcript_path
+            })
+    
+    except Exception as e:
+        print(f"Transcription error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("WEBHOOK_PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
