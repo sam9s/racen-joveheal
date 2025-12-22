@@ -1005,6 +1005,338 @@ def transcribe_audio():
         return jsonify({"error": str(e)}), 500
 
 
+vapi_conversation_histories = {}
+
+
+def validate_vapi_request() -> bool:
+    """
+    Validate that the request is from VAPI.
+    
+    Checks for VAPI secret in Authorization header or x-vapi-secret header.
+    If VAPI_WEBHOOK_SECRET is not configured, allows all requests (dev mode).
+    """
+    vapi_secret = os.environ.get("VAPI_WEBHOOK_SECRET", "")
+    
+    if not vapi_secret:
+        return True
+    
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        if auth_header[7:] == vapi_secret:
+            return True
+    
+    vapi_header = request.headers.get("x-vapi-secret", "")
+    if vapi_header == vapi_secret:
+        return True
+    
+    return False
+
+
+@app.route("/api/vapi/webhook", methods=["POST"])
+def vapi_webhook():
+    """
+    VAPI Voice AI Webhook Endpoint
+    
+    Handles incoming requests from VAPI for SOMERA Voice Assistant.
+    Supports:
+    - tool-calls: Custom function calls to get SOMERA coaching responses
+    - conversation-update: Track conversation state
+    - end-of-call-report: Log completed calls
+    - Other events: Acknowledge without action
+    
+    Security: Validates VAPI_WEBHOOK_SECRET if configured.
+    """
+    if not validate_vapi_request():
+        print(f"[VAPI] Rejected request - invalid or missing authentication")
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        data = request.get_json()
+        if not data or "message" not in data:
+            return jsonify({"error": "Invalid request format"}), 400
+        
+        message = data["message"]
+        message_type = message.get("type", "")
+        call_id = message.get("call", {}).get("id", "unknown")
+        
+        print(f"[VAPI] Received {message_type} for call {call_id}")
+        
+        if message_type == "tool-calls":
+            return handle_vapi_tool_calls(message, call_id)
+        
+        elif message_type == "conversation-update":
+            return handle_vapi_conversation_update(message, call_id)
+        
+        elif message_type == "end-of-call-report":
+            return handle_vapi_end_of_call(message, call_id)
+        
+        elif message_type == "assistant-request":
+            return handle_vapi_assistant_request(message, call_id)
+        
+        elif message_type == "status-update":
+            status = message.get("status", "")
+            print(f"[VAPI] Call {call_id} status: {status}")
+            return jsonify({}), 200
+        
+        elif message_type == "transcript":
+            transcript = message.get("transcript", "")
+            role = message.get("role", "")
+            print(f"[VAPI] Transcript ({role}): {transcript[:100]}...")
+            return jsonify({}), 200
+        
+        else:
+            print(f"[VAPI] Unhandled message type: {message_type}")
+            return jsonify({}), 200
+            
+    except Exception as e:
+        print(f"[VAPI] Webhook error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def handle_vapi_tool_calls(message: dict, call_id: str):
+    """
+    Handle VAPI tool/function calls.
+    
+    When VAPI's LLM decides to call our custom tool (e.g., get_somera_response),
+    this function processes the request and returns the SOMERA response.
+    """
+    tool_calls = message.get("toolCallList", [])
+    tool_with_call_list = message.get("toolWithToolCallList", [])
+    
+    if not tool_calls and tool_with_call_list:
+        tool_calls = []
+        for item in tool_with_call_list:
+            tool_call = item.get("toolCall", {})
+            tool_call["name"] = item.get("name", tool_call.get("name", ""))
+            tool_calls.append(tool_call)
+    
+    results = []
+    
+    for tool_call in tool_calls:
+        tool_call_id = tool_call.get("id", "")
+        tool_name = tool_call.get("name", "")
+        params = tool_call.get("parameters", {})
+        
+        print(f"[VAPI] Tool call: {tool_name} with params: {params}")
+        
+        if tool_name == "get_somera_response":
+            user_message = params.get("user_message", params.get("message", ""))
+            
+            if not user_message:
+                results.append({
+                    "name": tool_name,
+                    "toolCallId": tool_call_id,
+                    "result": "I didn't catch that. Could you please repeat?"
+                })
+                continue
+            
+            history = vapi_conversation_histories.get(call_id, [])
+            
+            try:
+                response_data = generate_somera_response(
+                    user_message=user_message,
+                    conversation_history=history
+                )
+                response_text = response_data.get("response", "I'm here to listen. Could you tell me more?")
+                response_text = optimize_response_for_voice(response_text)
+                
+                history.append({"role": "user", "content": user_message})
+                history.append({"role": "assistant", "content": response_text})
+                vapi_conversation_histories[call_id] = history[-20:]
+                
+                results.append({
+                    "name": tool_name,
+                    "toolCallId": tool_call_id,
+                    "result": response_text
+                })
+                
+            except Exception as e:
+                print(f"[VAPI] SOMERA error: {e}")
+                results.append({
+                    "name": tool_name,
+                    "toolCallId": tool_call_id,
+                    "result": "I'm having a moment. Could you share that with me again?"
+                })
+        
+        else:
+            results.append({
+                "name": tool_name,
+                "toolCallId": tool_call_id,
+                "result": f"Unknown tool: {tool_name}"
+            })
+    
+    return jsonify({"results": results}), 200
+
+
+def handle_vapi_conversation_update(message: dict, call_id: str):
+    """Track conversation updates from VAPI."""
+    messages = message.get("messagesOpenAIFormatted", [])
+    if messages:
+        vapi_conversation_histories[call_id] = messages[-20:]
+        print(f"[VAPI] Updated conversation history for call {call_id}: {len(messages)} messages")
+    return jsonify({}), 200
+
+
+def handle_vapi_end_of_call(message: dict, call_id: str):
+    """Handle end of call report - log and clean up."""
+    ended_reason = message.get("endedReason", "unknown")
+    artifact = message.get("artifact", {})
+    transcript = artifact.get("transcript", "")
+    duration = message.get("call", {}).get("duration", 0)
+    
+    print(f"[VAPI] Call {call_id} ended. Reason: {ended_reason}, Duration: {duration}s")
+    print(f"[VAPI] Transcript preview: {transcript[:200]}...")
+    
+    if call_id in vapi_conversation_histories:
+        del vapi_conversation_histories[call_id]
+    
+    return jsonify({}), 200
+
+
+def handle_vapi_assistant_request(message: dict, call_id: str):
+    """
+    Handle dynamic assistant configuration request.
+    
+    This is called when VAPI needs to know which assistant to use.
+    We return a transient assistant configuration with SOMERA's persona.
+    """
+    elevenlabs_voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "")
+    
+    webhook_base = os.environ.get("WEBHOOK_BASE_URL", "")
+    if not webhook_base:
+        replit_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+        if replit_domain:
+            webhook_base = f"https://{replit_domain}"
+    
+    webhook_url = f"{webhook_base}/api/vapi/webhook"
+    
+    assistant_config = {
+        "assistant": {
+            "name": "SOMERA Voice",
+            "firstMessage": "Hello, this is Somera. I'm here to listen and support you. What's on your mind today?",
+            "model": {
+                "provider": "openai",
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": get_somera_voice_system_prompt()
+                    }
+                ],
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "get_somera_response",
+                            "description": "Get a coaching response from SOMERA based on what the user shared. Call this for every user message to provide empathetic coaching.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "user_message": {
+                                        "type": "string",
+                                        "description": "What the user said"
+                                    }
+                                },
+                                "required": ["user_message"]
+                            }
+                        },
+                        "async": False,
+                        "server": {
+                            "url": webhook_url
+                        }
+                    }
+                ]
+            },
+            "voice": {
+                "provider": "11labs",
+                "voiceId": elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM"
+            },
+            "transcriber": {
+                "provider": "deepgram",
+                "model": "nova-2",
+                "language": "en"
+            },
+            "server": {
+                "url": webhook_url
+            },
+            "silenceTimeoutSeconds": 30,
+            "responseDelaySeconds": 0.5,
+            "endCallMessage": "Thank you for sharing with me today. Take care of yourself, and remember, you're not alone on this journey.",
+            "endCallPhrases": ["goodbye", "bye", "thank you bye", "that's all", "end call"]
+        }
+    }
+    
+    print(f"[VAPI] Returning assistant config for call {call_id}")
+    return jsonify(assistant_config), 200
+
+
+def get_somera_voice_system_prompt() -> str:
+    """Get the system prompt optimized for voice interactions."""
+    return """You are SOMERA, Shweta's empathetic AI coaching assistant for JoveHeal, speaking with someone on a phone call.
+
+YOUR VOICE PERSONA:
+- Warm, calm, and genuinely caring
+- Speak naturally as if in a real conversation
+- Use short, conversational sentences (this is a phone call, not text)
+- Pause naturally between thoughts
+- Never sound robotic or scripted
+
+COACHING APPROACH:
+- Listen with empathy and without judgment
+- Ask gentle, open-ended questions to help them explore their feelings
+- Reflect back what you hear to show understanding
+- Guide them toward their own insights - don't give direct advice
+- Focus on the Three Pillars: Career, Relationships, and Wellness
+
+VOICE CONVERSATION RULES:
+- Keep responses under 3-4 sentences - this is a conversation, not a lecture
+- Use natural filler words occasionally ("I see", "mmm", "that makes sense")
+- If they share something heavy, pause and acknowledge before continuing
+- Never say "as an AI" or break character
+- For deep healing topics (chakra work, energy healing, etc.), warmly suggest booking a Discovery Call with Shweta
+
+IMPORTANT:
+- Use the get_somera_response tool for EVERY user message to get coaching context
+- Speak the response naturally, as Shweta would
+- If the connection seems lost, gently ask if they're still there"""
+
+
+def optimize_response_for_voice(text: str) -> str:
+    """
+    Optimize text response for voice/TTS output.
+    
+    - Remove markdown formatting
+    - Shorten for conversational flow
+    - Remove URLs (can't speak them naturally)
+    - Add natural pauses
+    """
+    import re
+    
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+    text = re.sub(r'\*([^*]+)\*', r'\1', text)
+    text = re.sub(r'__([^_]+)__', r'\1', text)
+    text = re.sub(r'_([^_]+)_', r'\1', text)
+    
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+    
+    text = re.sub(r'https?://[^\s]+', '', text)
+    
+    text = re.sub(r'^\s*[-*•]\s*', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*\d+\.\s*', '', text, flags=re.MULTILINE)
+    
+    text = text.replace('💙', '').replace('❤️', '').replace('✨', '').replace('🌟', '')
+    text = re.sub(r'[^\w\s.,!?\'"-]', '', text)
+    
+    text = re.sub(r'\n+', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    sentences = text.split('. ')
+    if len(sentences) > 4:
+        text = '. '.join(sentences[:4]) + '.'
+    
+    return text
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("WEBHOOK_PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
