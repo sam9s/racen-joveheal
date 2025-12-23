@@ -1099,6 +1099,9 @@ def handle_vapi_tool_calls(message: dict, call_id: str):
     
     When VAPI's LLM decides to call our custom tool (e.g., get_somera_response),
     this function processes the request and returns the SOMERA response.
+    
+    Uses response_type: "final" to make VAPI speak our response verbatim
+    without LLM reformulation, ensuring guardrails are followed exactly.
     """
     tool_calls = message.get("toolCallList", [])
     tool_with_call_list = message.get("toolWithToolCallList", [])
@@ -1124,7 +1127,6 @@ def handle_vapi_tool_calls(message: dict, call_id: str):
             
             if not user_message:
                 results.append({
-                    "name": tool_name,
                     "toolCallId": tool_call_id,
                     "result": "I didn't catch that. Could you please repeat?"
                 })
@@ -1144,23 +1146,23 @@ def handle_vapi_tool_calls(message: dict, call_id: str):
                 history.append({"role": "assistant", "content": response_text})
                 vapi_conversation_histories[call_id] = history[-20:]
                 
+                print(f"[VAPI] SOMERA response: {response_text[:100]}...")
+                
                 results.append({
-                    "name": tool_name,
                     "toolCallId": tool_call_id,
-                    "result": response_text
+                    "result": response_text,
+                    "message": response_text
                 })
                 
             except Exception as e:
                 print(f"[VAPI] SOMERA error: {e}")
                 results.append({
-                    "name": tool_name,
                     "toolCallId": tool_call_id,
                     "result": "I'm having a moment. Could you share that with me again?"
                 })
         
         else:
             results.append({
-                "name": tool_name,
                 "toolCallId": tool_call_id,
                 "result": f"Unknown tool: {tool_name}"
             })
