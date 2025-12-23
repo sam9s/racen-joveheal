@@ -1339,6 +1339,170 @@ def optimize_response_for_voice(text: str) -> str:
     return text
 
 
+custom_llm_conversation_histories = {}
+
+
+@app.route("/api/vapi/chat/completions", methods=["POST"])
+def vapi_custom_llm():
+    """
+    VAPI Custom LLM Endpoint - OpenAI-compatible /chat/completions
+    
+    This endpoint REPLACES VAPI's LLM entirely. VAPI sends us:
+    - Deepgram transcription in OpenAI message format
+    - We process with SOMERA engine
+    - Return response that VAPI speaks with ElevenLabs
+    
+    NO VAPI LLM INTERFERENCE - we have full control.
+    """
+    if not validate_vapi_request():
+        print(f"[VAPI Custom LLM] Rejected - invalid auth")
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    try:
+        data = request.get_json()
+        messages = data.get("messages", [])
+        stream = data.get("stream", False)
+        
+        call_metadata = data.get("call", {})
+        call_id = call_metadata.get("id", "custom-llm-" + str(hash(str(messages)))[:8])
+        
+        print(f"[VAPI Custom LLM] Received request for call {call_id}, stream={stream}")
+        
+        user_message = ""
+        for msg in reversed(messages):
+            if msg.get("role") == "user":
+                user_message = msg.get("content", "")
+                break
+        
+        if not user_message:
+            response_text = "Hello! I'm SOMERA, your coaching companion. How are you feeling today?"
+        else:
+            history = custom_llm_conversation_histories.get(call_id, [])
+            
+            try:
+                response_data = generate_somera_response(
+                    user_message=user_message,
+                    conversation_history=history
+                )
+                response_text = response_data.get("response", "I'm here to listen. Could you tell me more?")
+                response_text = optimize_response_for_voice(response_text)
+                
+                history.append({"role": "user", "content": user_message})
+                history.append({"role": "assistant", "content": response_text})
+                custom_llm_conversation_histories[call_id] = history[-20:]
+                
+                print(f"[VAPI Custom LLM] SOMERA response: {response_text[:100]}...")
+                
+            except Exception as e:
+                print(f"[VAPI Custom LLM] SOMERA error: {e}")
+                response_text = "I'm here with you. Could you share that with me again?"
+        
+        if stream:
+            return stream_openai_response(response_text, call_id)
+        else:
+            return jsonify({
+                "id": f"chatcmpl-{call_id}",
+                "object": "chat.completion",
+                "created": int(__import__('time').time()),
+                "model": "somera-voice-1",
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": response_text
+                    },
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": len(user_message.split()),
+                    "completion_tokens": len(response_text.split()),
+                    "total_tokens": len(user_message.split()) + len(response_text.split())
+                }
+            })
+            
+    except Exception as e:
+        print(f"[VAPI Custom LLM] Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def stream_openai_response(response_text: str, call_id: str):
+    """
+    Stream response in OpenAI SSE format for real-time voice.
+    
+    VAPI expects SSE with 'data: {...}' format matching OpenAI's streaming.
+    First chunk MUST include 'role: assistant' for OpenAI-compatible clients.
+    """
+    import time
+    import json
+    
+    def generate():
+        chunk_id = f"chatcmpl-{call_id}"
+        
+        role_chunk = {
+            "id": chunk_id,
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": "somera-voice-1",
+            "choices": [{
+                "index": 0,
+                "delta": {
+                    "role": "assistant",
+                    "content": ""
+                },
+                "finish_reason": None
+            }]
+        }
+        yield f"data: {json.dumps(role_chunk)}\n\n"
+        
+        words = response_text.split()
+        chunk_size = 3
+        
+        for i in range(0, len(words), chunk_size):
+            chunk_words = words[i:i + chunk_size]
+            chunk_text = " ".join(chunk_words)
+            if i > 0:
+                chunk_text = " " + chunk_text
+            
+            chunk_data = {
+                "id": chunk_id,
+                "object": "chat.completion.chunk",
+                "created": int(time.time()),
+                "model": "somera-voice-1",
+                "choices": [{
+                    "index": 0,
+                    "delta": {
+                        "content": chunk_text
+                    },
+                    "finish_reason": None
+                }]
+            }
+            yield f"data: {json.dumps(chunk_data)}\n\n"
+        
+        done_data = {
+            "id": chunk_id,
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": "somera-voice-1",
+            "choices": [{
+                "index": 0,
+                "delta": {},
+                "finish_reason": "stop"
+            }]
+        }
+        yield f"data: {json.dumps(done_data)}\n\n"
+        yield "data: [DONE]\n\n"
+    
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("WEBHOOK_PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
