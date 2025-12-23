@@ -13,6 +13,7 @@ export default function VoiceDemo() {
   const [error, setError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState<string>('');
 
   useEffect(() => {
     const publicKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
@@ -34,6 +35,7 @@ export default function VoiceDemo() {
       setIsSpeaking(false);
       setIsAssistantSpeaking(false);
       setVolumeLevel(0);
+      setLiveTranscript('');
     });
 
     vapiInstance.on('speech-start', () => {
@@ -48,12 +50,16 @@ export default function VoiceDemo() {
       setVolumeLevel(level);
     });
 
-    vapiInstance.on('message', (message: { type: string; transcript?: string; role?: string }) => {
+    vapiInstance.on('message', (message: { type: string; transcript?: string; transcriptType?: string; role?: string }) => {
       if (message.type === 'transcript' && message.transcript) {
-        setTranscript(prev => {
-          const newEntry = `${message.role === 'user' ? 'You' : 'SOMERA'}: ${message.transcript}`;
-          return [...prev.slice(-9), newEntry];
-        });
+        const role = message.role === 'user' ? 'You' : 'SOMERA';
+        
+        if (message.transcriptType === 'final') {
+          setTranscript(prev => [...prev, `${role}: ${message.transcript}`]);
+          setLiveTranscript('');
+        } else {
+          setLiveTranscript(`${role}: ${message.transcript}`);
+        }
       }
       
       if (message.type === 'speech-update') {
@@ -222,6 +228,14 @@ export default function VoiceDemo() {
               {!isSpeaking && !isAssistantSpeaking && (
                 <p className="text-gray-400 text-sm">Speak to begin...</p>
               )}
+            </div>
+          )}
+
+          {liveTranscript && callStatus === 'connected' && (
+            <div className="w-full mb-4 p-3 bg-purple-900/30 rounded-lg border border-purple-500/30 animate-pulse">
+              <p className={`text-sm italic ${liveTranscript.startsWith('You:') ? 'text-pink-300' : 'text-purple-300'}`}>
+                {liveTranscript}...
+              </p>
             </div>
           )}
 
