@@ -54,6 +54,104 @@ def is_greeting(message: str) -> bool:
     return False
 
 
+SOLUTION_REQUEST_PATTERNS = [
+    "what should i do",
+    "what can i do",
+    "how can i fix",
+    "any advice",
+    "some advice",
+    "give me advice",
+    "give me some advice",
+    "give me suggestions",
+    "give me some suggestions",
+    "give me tips",
+    "give me some tips",
+    "give me guidance",
+    "what do you suggest",
+    "can you suggest",
+    "you might suggest",
+    "help me with this",
+    "i need guidance",
+    "what are my options",
+    "guide me",
+    "can you guide",
+    "what would you recommend",
+    "give me steps",
+    "give me some steps",
+    "those steps you were talking",
+    "certain steps",
+    "what steps",
+    "interested in that",
+    "i want to know how",
+    "tell me how",
+    "show me how",
+    "from your knowledge",
+    "from your own knowledge",
+    "advice or suggestions",
+    "suggestions or advice",
+    "need help",
+    "want help",
+    "could you help",
+    "can you help",
+]
+
+
+NEGATION_PREFIXES = [
+    "don't ", "dont ", "do not ", "doesn't ", "doesnt ", "does not ",
+    "can't ", "cant ", "cannot ", "won't ", "wont ", "will not ",
+    "not ", "no ", "never ", "later ", "maybe later"
+]
+
+def is_solution_requested(message: str, conversation_history: List[dict] = None) -> bool:
+    """
+    Detect if the user is explicitly asking for solutions, steps, or guidance.
+    Also checks if they've asked multiple times (indicating frustration with probing).
+    
+    Handles negation: "I don't need help" won't trigger solution mode.
+    """
+    msg_lower = message.lower()
+    
+    def pattern_is_negated(text: str, pattern: str) -> bool:
+        """Check if the pattern is preceded by negation words."""
+        idx = text.find(pattern)
+        if idx == -1:
+            return False
+        prefix = text[:idx].split()[-3:] if idx > 0 else []
+        prefix_text = " ".join(prefix) + " "
+        for neg in NEGATION_PREFIXES:
+            if neg in prefix_text:
+                return True
+        return False
+    
+    for pattern in SOLUTION_REQUEST_PATTERNS:
+        if pattern in msg_lower and not pattern_is_negated(msg_lower, pattern):
+            return True
+    
+    if conversation_history:
+        solution_request_count = 0
+        for msg in conversation_history[-6:]:
+            if msg.get("role") == "user":
+                content = msg.get("content", "").lower()
+                for pattern in SOLUTION_REQUEST_PATTERNS:
+                    if pattern in content and not pattern_is_negated(content, pattern):
+                        solution_request_count += 1
+                        break
+        if solution_request_count >= 1:
+            for pattern in SOLUTION_REQUEST_PATTERNS:
+                if pattern in msg_lower and not pattern_is_negated(msg_lower, pattern):
+                    return True
+            if solution_request_count >= 2:
+                return True
+    
+    return False
+
+
+def count_conversation_turns(conversation_history: List[dict]) -> int:
+    """Count the number of user-assistant exchange pairs."""
+    user_messages = sum(1 for msg in conversation_history if msg.get("role") == "user")
+    return user_messages
+
+
 def get_openai_client():
     """Get OpenAI client singleton."""
     global _openai_client
@@ -255,10 +353,53 @@ When appropriate, gently probe if they notice similar feelings in other areas:
 
 {cross_pillar_context}"""
     
+    solution_mode = is_solution_requested(user_message, conversation_history)
+    conversation_turns = count_conversation_turns(conversation_history)
+    
+    print(f"[SOMERA Debug - Non-stream] Message: '{user_message[:50]}...', Solution mode: {solution_mode}, Turns: {conversation_turns}")
+    
+    solution_mode_directive = ""
+    if solution_mode or conversation_turns >= 5:
+        print(f"[SOMERA Debug - Non-stream] SOLUTION MODE ACTIVATED!")
+        solution_mode_directive = """
+
+=== ⚠️ SOLUTION MODE ACTIVATED - CRITICAL INSTRUCTION ===
+
+The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PROVIDE ANSWERS, NOT QUESTIONS.
+
+**MANDATORY REQUIREMENTS - FAILURE TO FOLLOW WILL BE CONSIDERED A BUG:**
+
+1. **DO NOT ASK ANY QUESTIONS** - Not even "Would you be open to..." or "What do you think might help?" or any variation. The user has ALREADY asked for help.
+
+2. **PROVIDE 2-3 CONCRETE INSIGHTS NOW** from the coaching content:
+   - Start with a brief acknowledgment (1 sentence MAX)
+   - Then immediately provide actionable perspectives or steps
+   - Each insight should be specific and grounded in the coaching wisdom
+
+3. **FORMAT YOUR RESPONSE LIKE THIS:**
+   "Thank you for sharing that with me. Based on what you've described, here are some perspectives that might resonate:
+
+   First, [specific insight from coaching content about their situation]...
+
+   Second, [another concrete perspective or reframe]...
+
+   If you'd like to go deeper with these insights, working with Shweta directly can help you..."
+
+4. **BANNED PHRASES - DO NOT USE:**
+   - "Would you be open to..."
+   - "Would it help if I shared..."
+   - "What do you think..."
+   - "How does that resonate..."
+   - Any question asking for their input before giving guidance
+
+5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom, not gathering more information. Give them something valuable to take away RIGHT NOW.
+"""
+    
     if has_relevant_content:
         augmented_prompt = f"""{system_prompt}
 {personalization}
 {cross_pillar_awareness}
+{solution_mode_directive}
 
 === SHWETA'S COACHING WISDOM ===
 The following is from Shweta's actual coaching content. You MUST base your response on these insights:
@@ -276,6 +417,7 @@ CRITICAL ANTI-HALLUCINATION RULES:
         augmented_prompt = f"""{system_prompt}
 {personalization}
 {cross_pillar_awareness}
+{solution_mode_directive}
 
 NOTE: I don't have specific coaching content for this topic in my knowledge base. Respond warmly and empathetically, but be honest that you don't have specific coaching guidance. Offer to help them explore related topics or connect with the JoveHeal team."""
 
@@ -406,6 +548,48 @@ When appropriate, gently probe if they notice similar feelings in other areas:
 
 {cross_pillar_context}"""
     
+    solution_mode = is_solution_requested(user_message, conversation_history)
+    conversation_turns = count_conversation_turns(conversation_history)
+    
+    print(f"[SOMERA Debug - Stream] Message: '{user_message[:50]}...', Solution mode: {solution_mode}, Turns: {conversation_turns}")
+    
+    solution_mode_directive = ""
+    if solution_mode or conversation_turns >= 5:
+        print(f"[SOMERA Debug - Stream] SOLUTION MODE ACTIVATED!")
+        solution_mode_directive = """
+
+=== ⚠️ SOLUTION MODE ACTIVATED - CRITICAL INSTRUCTION ===
+
+The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PROVIDE ANSWERS, NOT QUESTIONS.
+
+**MANDATORY REQUIREMENTS - FAILURE TO FOLLOW WILL BE CONSIDERED A BUG:**
+
+1. **DO NOT ASK ANY QUESTIONS** - Not even "Would you be open to..." or "What do you think might help?" or any variation. The user has ALREADY asked for help.
+
+2. **PROVIDE 2-3 CONCRETE INSIGHTS NOW** from the coaching content:
+   - Start with a brief acknowledgment (1 sentence MAX)
+   - Then immediately provide actionable perspectives or steps
+   - Each insight should be specific and grounded in the coaching wisdom
+
+3. **FORMAT YOUR RESPONSE LIKE THIS:**
+   "Thank you for sharing that with me. Based on what you've described, here are some perspectives that might resonate:
+
+   First, [specific insight from coaching content about their situation]...
+
+   Second, [another concrete perspective or reframe]...
+
+   If you'd like to go deeper with these insights, working with Shweta directly can help you..."
+
+4. **BANNED PHRASES - DO NOT USE:**
+   - "Would you be open to..."
+   - "Would it help if I shared..."
+   - "What do you think..."
+   - "How does that resonate..."
+   - Any question asking for their input before giving guidance
+
+5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom, not gathering more information. Give them something valuable to take away RIGHT NOW.
+"""
+    
     if is_simple_greeting:
         augmented_prompt = f"""{system_prompt}
 {personalization}
@@ -421,6 +605,7 @@ Do NOT provide any coaching advice yet - just welcome them warmly."""
         augmented_prompt = f"""{system_prompt}
 {personalization}
 {cross_pillar_awareness}
+{solution_mode_directive}
 
 === SHWETA'S COACHING WISDOM ===
 The following is from Shweta's actual coaching content. You MUST base your response on these insights:
@@ -438,6 +623,7 @@ CRITICAL ANTI-HALLUCINATION RULES:
         augmented_prompt = f"""{system_prompt}
 {personalization}
 {cross_pillar_awareness}
+{solution_mode_directive}
 
 NOTE: I don't have specific coaching content for this topic in my knowledge base. Respond warmly and empathetically, but be honest that you don't have specific coaching guidance. Offer to help them explore related topics or connect with the JoveHeal team."""
 
