@@ -1354,12 +1354,10 @@ def vapi_custom_llm():
     
     NO VAPI LLM INTERFERENCE - we have full control.
     """
-    if not validate_vapi_request():
-        print(f"[VAPI Custom LLM] Rejected - invalid auth")
-        return jsonify({"error": "Unauthorized"}), 401
-    
     try:
         data = request.get_json()
+        if data:
+            print(f"[VAPI Custom LLM] Raw request keys: {list(data.keys())}")
         messages = data.get("messages", [])
         stream = data.get("stream", False)
         
