@@ -158,6 +158,17 @@ export default function VoiceDemo() {
 
         <div className="relative flex flex-col items-center">
           <div className="relative mb-8">
+            {callStatus === 'connecting' && (
+              <>
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500/40 to-pink-500/40 animate-ping" style={{ animationDuration: '1.5s' }} />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 animate-pulse" />
+                <div 
+                  className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-400 border-r-pink-400 animate-spin"
+                  style={{ animationDuration: '1s' }}
+                />
+              </>
+            )}
+
             <div 
               className={`absolute inset-0 rounded-full transition-all duration-300 ${
                 callStatus === 'connected' 
@@ -213,10 +224,26 @@ export default function VoiceDemo() {
             </button>
           </div>
 
+          {callStatus === 'connecting' && (
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center gap-2 text-purple-400 mb-2">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+              <p className="text-purple-300 text-sm">Connecting to SOMERA...</p>
+              <p className="text-gray-500 text-xs mt-1">Please allow microphone access</p>
+            </div>
+          )}
+
           {callStatus === 'connected' && (
             <div className="text-center mb-6 animate-fade-in">
               <div className="flex items-center justify-center gap-2 text-green-400 mb-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
                 <span className="text-sm font-medium">Connected</span>
               </div>
               {isAssistantSpeaking && (
