@@ -1262,9 +1262,21 @@ def handle_vapi_assistant_request(message: dict, call_id: str):
                 "url": webhook_url
             },
             "silenceTimeoutSeconds": 30,
-            "responseDelaySeconds": 0.5,
+            "responseDelaySeconds": 0.4,
             "endCallMessage": "Thank you for sharing with me today. Take care of yourself, and remember, you're not alone on this journey.",
-            "endCallPhrases": ["goodbye", "bye", "thank you bye", "that's all", "end call"]
+            "endCallPhrases": [
+                "goodbye", "bye", "bye bye", "bye-bye",
+                "thank you bye", "thanks bye", "thank you goodbye",
+                "that's all", "that is all", "that will be all",
+                "end call", "end the call", "hang up",
+                "no thank you", "no thanks", "no that's it",
+                "have a nice day", "have a good day", "have a great day",
+                "take care", "see you", "see you later",
+                "I'm done", "I am done", "we're done", "we are done",
+                "nothing else", "nothing more", "that's everything",
+                "I'll let you go", "let me go", "I should go",
+                "I have to go", "I need to go", "gotta go"
+            ]
         }
     }
     

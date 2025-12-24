@@ -117,6 +117,19 @@ export default function SomeraAdminDashboard() {
     }
   }, [timeRange, activeTab, isAuthenticated]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const pollInterval = setInterval(() => {
+      fetch(`/api/admin/somera/calls?range=${timeRange}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => data && setCalls(data.calls || []))
+        .catch(() => {});
+    }, 30000);
+    
+    return () => clearInterval(pollInterval);
+  }, [isAuthenticated, timeRange]);
+
   const checkAuth = async () => {
     setAuthChecking(true);
     try {
