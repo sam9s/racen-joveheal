@@ -1501,10 +1501,13 @@ def vapi_custom_llm():
                 closure = is_closure_signal(user_message, history)
                 booking = is_booking_request(user_message)
                 
+                print(f"[VAPI Custom LLM] Closure check: is_strong={closure['is_strong']}, is_closing={closure['is_closing']}, pattern={closure.get('pattern_matched')}")
+                print(f"[VAPI Custom LLM] Booking check: {booking}")
+                
                 skip_voice_optimization = False
                 should_end_call = False
                 
-                if booking:
+                if booking and not closure['is_strong']:
                     response_text = get_voice_friendly_booking_response()
                     skip_voice_optimization = True
                     print(f"[VAPI Custom LLM] Booking request detected - providing voice-friendly booking info")
