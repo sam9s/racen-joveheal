@@ -74,6 +74,12 @@ INTERNAL_API_KEY = "J8N05Lhofi7WbWPAJMnKV+VzH5PSqbQZctE+zXsnZB0="
 ADMIN_EMAILS = "sam27sep@gmail.com,shaveta@joveheal.com"
 DASHBOARD_PASSWORD = "Shaveta@098"
 DASHBOARD_EMAIL = "shaveta@joveheal.com"
+
+[userenv.development]
+NEXT_PUBLIC_VAPI_PUBLIC_KEY = "135fdcab-d4e9-4729-ac09-a905d8793170"
+NEXT_PUBLIC_VAPI_ASSISTANT_ID = "c09f6a3b-35d5-4e23-bd67-36299a4f44dd"
+
+[userenv.production]
 NEXT_PUBLIC_VAPI_PUBLIC_KEY = "135fdcab-d4e9-4729-ac09-a905d8793170"
 NEXT_PUBLIC_VAPI_ASSISTANT_ID = "c09f6a3b-35d5-4e23-bd67-36299a4f44dd"
 
