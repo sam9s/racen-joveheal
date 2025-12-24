@@ -27,6 +27,13 @@ The system utilizes a Retrieval Augmented Generation (RAG) approach.
 - **Google OAuth Authentication**: Uses NextAuth.js for user sign-in and links conversations to user accounts in PostgreSQL.
 - **Production Reliability**: Includes frontend retry logic, a robust `start_production.sh` script, a Flask `/health` endpoint, and auto-rebuild of the ChromaDB knowledge base on cold starts.
 - **Admin Dashboard Transcription**: A feature within the admin dashboard to transcribe audio/video files using OpenAI Whisper API, saving transcripts to `transcripts/`.
+- **SOMERA Admin Dashboard** (`somera_admin.py`): A dedicated analytics dashboard for SOMERA Voice and text coaching sessions. Features include:
+  - **Voice Analytics**: Total calls, messages, average latency, booking conversion rate
+  - **Latency Trends**: Charts showing response time over the past 30 days
+  - **Readiness Distribution**: Visualization of explore/transition/guide score distribution
+  - **Transcripts**: Full call history with user messages showing readiness scores and assistant messages showing latency
+  - **Coaching Insights**: Conversion funnel, peak readiness analysis, and threshold metrics
+  - Run with: `streamlit run somera_admin.py --server.port 5001`
 
 ### Feature Specifications
 - Natural language Q&A with multi-turn context.

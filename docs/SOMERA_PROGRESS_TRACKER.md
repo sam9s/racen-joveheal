@@ -15,6 +15,8 @@
 | Graceful Call Endings | 40+ closure patterns, VAPI auto-termination on strong closures | Dec 24, 2024 |
 | Voice-Friendly Booking | Speakable URLs + clickable transcript links (bit.ly/apply-for-discovery) | Dec 24, 2024 |
 | Backup Scripts | Code backup to GitHub, database backup working | Dec 2024 |
+| SOMERA Admin Dashboard | Voice analytics dashboard with transcripts, latency metrics, readiness journey | Dec 24, 2024 |
+| Latency Tracking | Capture & display response time per message in database | Dec 24, 2024 |
 
 ---
 
@@ -70,9 +72,9 @@
 | Feature | Description |
 |---------|-------------|
 | Multi-language Support | Support for Hindi, Spanish, etc. |
-| Voice Analytics Dashboard | Call duration, topics, sentiment analysis |
 | Appointment Scheduling | Direct calendar integration |
 | Progress Tracking for Users | Track user's coaching journey over time |
+| Sentiment Analysis | Detect emotional patterns in voice calls |
 
 ---
 
