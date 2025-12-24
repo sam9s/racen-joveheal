@@ -232,6 +232,21 @@ export default function SomeraAdminDashboard() {
     return `${(ms / 1000).toFixed(1)}s`;
   };
 
+  const formatDuration = (startedAt: string, endedAt: string) => {
+    if (!startedAt || !endedAt) return '-';
+    const start = new Date(startedAt);
+    const end = new Date(endedAt);
+    const durationMs = end.getTime() - start.getTime();
+    if (durationMs < 0) return '-';
+    const seconds = Math.floor(durationMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}s`;
+    }
+    return `${seconds}s`;
+  };
+
   if (authChecking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center">
@@ -436,6 +451,7 @@ export default function SomeraAdminDashboard() {
             formatDate={formatDate}
             getReadinessBadge={getReadinessBadge}
             formatLatency={formatLatency}
+            formatDuration={formatDuration}
           />
         )}
         {activeTab === 'insights' && (
@@ -646,6 +662,7 @@ function TranscriptsView({
   formatDate,
   getReadinessBadge,
   formatLatency,
+  formatDuration,
 }: {
   calls: VoiceCall[];
   callsLoading: boolean;
@@ -656,6 +673,7 @@ function TranscriptsView({
   formatDate: (dateStr: string) => string;
   getReadinessBadge: (score: number | null) => React.ReactNode;
   formatLatency: (ms: number | null) => string;
+  formatDuration: (startedAt: string, endedAt: string) => string;
 }) {
   if (callsLoading) {
     return (
@@ -706,11 +724,12 @@ function TranscriptsView({
                   Peak: {Math.round(call.peakReadiness * 100)}%
                 </span>
               </div>
-              {call.avgLatency && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Avg latency: {formatLatency(call.avgLatency)}
-                </div>
-              )}
+              <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                <span>Duration: {formatDuration(call.startedAt, call.endedAt)}</span>
+                {call.avgLatency && (
+                  <span>Latency: {formatLatency(call.avgLatency)}</span>
+                )}
+              </div>
             </button>
           ))}
         </div>
