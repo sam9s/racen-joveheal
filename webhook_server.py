@@ -1455,6 +1455,7 @@ def vapi_custom_llm():
                 booking = is_booking_request(user_message)
                 
                 skip_voice_optimization = False
+                should_end_call = False
                 
                 if booking:
                     response_text = get_voice_friendly_booking_response()
@@ -1462,7 +1463,8 @@ def vapi_custom_llm():
                     print(f"[VAPI Custom LLM] Booking request detected - providing voice-friendly booking info")
                 elif closure["is_strong"]:
                     response_text = "It was wonderful talking with you today. I'm glad I could be here for you. Take care of yourself, and remember, you can always come back whenever you need support. Goodbye!"
-                    print(f"[VAPI Custom LLM] Strong closure detected: {closure['pattern_matched']}")
+                    should_end_call = True
+                    print(f"[VAPI Custom LLM] Strong closure detected: {closure['pattern_matched']} - will end call")
                 elif closure["is_closing"]:
                     response_text = "I'm so glad we could have this conversation. Before we wrap up, is there anything else on your mind you'd like to explore? If not, I wish you all the best on your journey."
                     print(f"[VAPI Custom LLM] Soft closure detected: {closure['pattern_matched']}")
@@ -1517,12 +1519,17 @@ def vapi_custom_llm():
         return jsonify({"error": str(e)}), 500
 
 
-def stream_openai_response(response_text: str, call_id: str):
+def stream_openai_response(response_text: str, call_id: str, end_call: bool = False):
     """
     Stream response in OpenAI SSE format for real-time voice.
     
     VAPI expects SSE with 'data: {...}' format matching OpenAI's streaming.
     First chunk MUST include 'role: assistant' for OpenAI-compatible clients.
+    
+    Args:
+        response_text: The text to speak
+        call_id: Unique call identifier
+        end_call: If True, include endCall tool call to terminate the VAPI call
     """
     import time
     import json
@@ -1570,18 +1577,43 @@ def stream_openai_response(response_text: str, call_id: str):
             }
             yield f"data: {json.dumps(chunk_data)}\n\n"
         
-        done_data = {
-            "id": chunk_id,
-            "object": "chat.completion.chunk",
-            "created": int(time.time()),
-            "model": "somera-voice-1",
-            "choices": [{
-                "index": 0,
-                "delta": {},
-                "finish_reason": "stop"
-            }]
-        }
-        yield f"data: {json.dumps(done_data)}\n\n"
+        if end_call:
+            tool_call_chunk = {
+                "id": chunk_id,
+                "object": "chat.completion.chunk",
+                "created": int(time.time()),
+                "model": "somera-voice-1",
+                "choices": [{
+                    "index": 0,
+                    "delta": {
+                        "tool_calls": [{
+                            "id": f"call_endCall_{call_id[:8]}",
+                            "type": "function",
+                            "function": {
+                                "name": "endCall",
+                                "arguments": "{}"
+                            }
+                        }]
+                    },
+                    "finish_reason": "tool_calls"
+                }]
+            }
+            yield f"data: {json.dumps(tool_call_chunk)}\n\n"
+            print(f"[VAPI Custom LLM] Sent endCall tool call to terminate call {call_id}")
+        else:
+            done_data = {
+                "id": chunk_id,
+                "object": "chat.completion.chunk",
+                "created": int(time.time()),
+                "model": "somera-voice-1",
+                "choices": [{
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop"
+                }]
+            }
+            yield f"data: {json.dumps(done_data)}\n\n"
+        
         yield "data: [DONE]\n\n"
     
     return Response(
