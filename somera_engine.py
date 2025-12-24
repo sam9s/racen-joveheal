@@ -65,7 +65,10 @@ STRONG_CLOSURE_PATTERNS = [
     "that would be all", "i'm done", "im done", "nothing else",
     "that's it", "thats it", "i have to go", "gotta go",
     "farewell", "ciao", "adios", "ta-ta", "tata", "tada",
-    "all done", "signing off", "over and out"
+    "all done", "signing off", "over and out",
+    "no thank you", "no thanks", "no, thank you", "no, thanks",
+    "have a nice day", "have a good day", "have a great day",
+    "end the call", "end call", "hang up"
 ]
 
 BOOKING_REQUEST_PATTERNS = [
