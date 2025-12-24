@@ -545,6 +545,74 @@
         "relationship",
         "career"
       ]
+    },
+    {
+      "video_title": "1:1 Session - Soul Purpose & Fear Work",
+      "topic": "wellness",
+      "speaker": "Shweta",
+      "chunks": 8,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "not_enough",
+        "fear_of_judgment",
+        "unworthiness"
+      ],
+      "root_causes": [
+        "self-doubt",
+        "forgotten power",
+        "fear conditioning"
+      ],
+      "pillars": [
+        "wellness",
+        "relationship",
+        "career"
+      ]
+    },
+    {
+      "video_title": "1:1 Discovery Call - Health & Relationships",
+      "topic": "relationship",
+      "speaker": "Shweta",
+      "chunks": 8,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "unworthiness",
+        "rejection",
+        "not_enough",
+        "boundary_issues"
+      ],
+      "root_causes": [
+        "father wound",
+        "unavailable partners pattern",
+        "ancestral imprint",
+        "health anxiety"
+      ],
+      "pillars": [
+        "relationship",
+        "wellness",
+        "career"
+      ]
+    },
+    {
+      "video_title": "1:1 Session - Career Transition & Goal Setting",
+      "topic": "career",
+      "speaker": "Shweta",
+      "chunks": 10,
+      "session_type": "one_on_one",
+      "emotional_patterns": [
+        "control_perfectionism",
+        "not_enough",
+        "overwhelm_exhaustion"
+      ],
+      "root_causes": [
+        "lack of clarity",
+        "self-doubt",
+        "desperation vs surrender"
+      ],
+      "pillars": [
+        "relationship",
+        "wellness",
+        "career"
+      ]
     }
   ]
 }
