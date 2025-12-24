@@ -1227,6 +1227,9 @@ def handle_vapi_assistant_request(message: dict, call_id: str):
                 ],
                 "tools": [
                     {
+                        "type": "endCall"
+                    },
+                    {
                         "type": "function",
                         "function": {
                             "name": "get_somera_response",
