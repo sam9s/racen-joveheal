@@ -1423,6 +1423,12 @@ def save_voice_message_async(call_id: str, role: str, content: str, readiness_sc
     """Save a voice message to the database in a background thread (non-blocking for latency)."""
     import threading
     
+    # Calculate turn number before spawning thread
+    turn_number = voice_call_turn_counts.get(call_id, 0)
+    if role == "user":
+        turn_number += 1
+        voice_call_turn_counts[call_id] = turn_number
+    
     def _save():
         try:
             import psycopg2
@@ -1440,9 +1446,9 @@ def save_voice_message_async(call_id: str, role: str, content: str, readiness_sc
             """, (call_id,))
             
             cur.execute("""
-                INSERT INTO voice_messages (call_id, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type, timestamp)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            """, (call_id, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type))
+                INSERT INTO voice_messages (call_id, turn_number, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type, timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            """, (call_id, turn_number, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type))
             
             conn.commit()
             cur.close()
