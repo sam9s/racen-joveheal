@@ -43,8 +43,11 @@ BREAKTHROUGH_PATTERNS = [
 
 CONFUSION_STUCK_PATTERNS = [
     r"\bi don'?t know\b",
+    r"\bdon'?t know\b",
     r"\bdon'?t know what to do\b",
     r"\bi have no idea\b",
+    r"\bhave no idea\b",
+    r"\bno idea\b",
     r"\bi'm stuck\b",
     r"\bfeeling stuck\b",
     r"\bi feel stuck\b",
@@ -57,6 +60,8 @@ CONFUSION_STUCK_PATTERNS = [
     r"\bwhat do i do\b",
     r"\bwhat can i do\b",
     r"\bi can'?t figure\b",
+    r"\bcan'?t figure\b",
+    r"\btrying to figure\b",
     r"\bcan'?t see\b.*\bway\b",
     r"\bno clue\b",
     r"\bit'?s overwhelming\b",
@@ -69,6 +74,11 @@ CONFUSION_STUCK_PATTERNS = [
     r"\bkeep coming back to\b",
     r"\bi need help\b",
     r"\bhelp me\b",
+    r"\bcan you help\b",
+    r"\byou can help\b",
+    r"\bmaybe you can\b",
+    r"\bsomething you can\b",
+    r"\banything you can\b",
 ]
 
 EXHAUSTION_PATTERNS = [
@@ -240,10 +250,10 @@ def calculate_readiness_score(
     
     total_score = min(1.0, weighted_score)
     
-    if total_score >= 0.45:
+    if total_score >= 0.35:
         recommendation = "guide"
         is_ready = True
-    elif total_score >= 0.25:
+    elif total_score >= 0.20:
         recommendation = "transition"
         is_ready = True
     else:
