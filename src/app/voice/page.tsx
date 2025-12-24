@@ -14,6 +14,8 @@ export default function VoiceDemo() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState<string>('');
+  const [waitingForResponse, setWaitingForResponse] = useState(false);
+  const [hasReceivedFirstResponse, setHasReceivedFirstResponse] = useState(false);
 
   useEffect(() => {
     const publicKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || '135fdcab-d4e9-4729-ac09-a905d8793170';
@@ -36,6 +38,8 @@ export default function VoiceDemo() {
       setIsAssistantSpeaking(false);
       setVolumeLevel(0);
       setLiveTranscript('');
+      setWaitingForResponse(false);
+      setHasReceivedFirstResponse(false);
     });
 
     vapiInstance.on('speech-start', () => {
@@ -65,7 +69,19 @@ export default function VoiceDemo() {
       if (message.type === 'speech-update') {
         const speechMsg = message as { type: string; status?: string; role?: string };
         if (speechMsg.role === 'assistant') {
-          setIsAssistantSpeaking(speechMsg.status === 'started');
+          const isStarted = speechMsg.status === 'started';
+          setIsAssistantSpeaking(isStarted);
+          if (isStarted) {
+            setWaitingForResponse(false);
+            setHasReceivedFirstResponse(true);
+          }
+        }
+        if (speechMsg.role === 'user') {
+          if (speechMsg.status === 'ended') {
+            setWaitingForResponse(true);
+          } else if (speechMsg.status === 'started') {
+            setWaitingForResponse(false);
+          }
         }
       }
     });
@@ -252,7 +268,19 @@ export default function VoiceDemo() {
               {isSpeaking && !isAssistantSpeaking && (
                 <p className="text-pink-300 text-sm">Listening to you...</p>
               )}
-              {!isSpeaking && !isAssistantSpeaking && (
+              {waitingForResponse && !isAssistantSpeaking && !isSpeaking && (
+                <div className="flex flex-col items-center">
+                  <div className="flex gap-1 mb-1">
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <p className="text-yellow-300 text-sm">
+                    {hasReceivedFirstResponse ? 'Preparing response...' : 'Initiating first response...'}
+                  </p>
+                </div>
+              )}
+              {!isSpeaking && !isAssistantSpeaking && !waitingForResponse && (
                 <p className="text-gray-400 text-sm">Speak to begin...</p>
               )}
             </div>
