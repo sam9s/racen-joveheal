@@ -287,8 +287,8 @@ export default function VoiceDemo() {
                     <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
-                  <p className="text-purple-300 text-sm">Warming up SOMERA...</p>
-                  <p className="text-gray-500 text-xs mt-1">You can start speaking, she'll respond shortly</p>
+                  <p className="text-purple-300 text-sm">Preparing your session...</p>
+                  <p className="text-gray-500 text-xs mt-1">You may begin speaking</p>
                 </div>
               )}
               {!isSpeaking && !isAssistantSpeaking && !waitingForResponse && hasReceivedFirstResponse && (
