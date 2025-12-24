@@ -1682,6 +1682,218 @@ def stream_openai_response(response_text: str, call_id: str, end_call: bool = Fa
     )
 
 
+@app.route("/api/admin/somera/stats", methods=["GET"])
+def somera_admin_stats():
+    """Get SOMERA Voice statistics for admin dashboard."""
+    try:
+        range_param = request.args.get('range', '30d')
+        days = 30
+        if range_param == '7d':
+            days = 7
+        elif range_param == '24h':
+            days = 1
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT 
+                COUNT(DISTINCT call_id) as total_calls,
+                COUNT(*) as total_messages,
+                AVG(CASE WHEN latency_ms > 0 THEN latency_ms END) as avg_latency,
+                MAX(readiness_score) as peak_readiness,
+                AVG(readiness_score) as avg_readiness,
+                COUNT(CASE WHEN closure_type = 'booking_request' THEN 1 END) as booking_requests
+            FROM voice_messages
+            WHERE timestamp >= NOW() - INTERVAL '%s days'
+        """, (days,))
+        row = cur.fetchone()
+        
+        total_calls = row[0] or 0
+        total_messages = row[1] or 0
+        avg_latency = float(row[2]) if row[2] else 0
+        peak_readiness = float(row[3]) if row[3] else 0
+        avg_readiness = float(row[4]) if row[4] else 0
+        booking_requests = row[5] or 0
+        
+        booking_rate = (booking_requests / total_calls * 100) if total_calls > 0 else 0
+        
+        cur.execute("""
+            SELECT 
+                DATE(timestamp) as date,
+                MIN(CASE WHEN latency_ms > 0 THEN latency_ms END) as min_latency,
+                AVG(CASE WHEN latency_ms > 0 THEN latency_ms END) as avg_latency,
+                MAX(CASE WHEN latency_ms > 0 THEN latency_ms END) as max_latency
+            FROM voice_messages
+            WHERE timestamp >= NOW() - INTERVAL '%s days'
+            GROUP BY DATE(timestamp)
+            ORDER BY date
+        """, (days,))
+        latency_rows = cur.fetchall()
+        
+        latency_trends = []
+        for lr in latency_rows:
+            latency_trends.append({
+                "date": lr[0].strftime('%b %d') if lr[0] else '',
+                "min": float(lr[1]) if lr[1] else 0,
+                "avg": float(lr[2]) if lr[2] else 0,
+                "max": float(lr[3]) if lr[3] else 0
+            })
+        
+        cur.execute("""
+            SELECT 
+                CASE 
+                    WHEN readiness_score < 0.20 THEN 'explore'
+                    WHEN readiness_score < 0.35 THEN 'transition'
+                    ELSE 'guide'
+                END as zone,
+                COUNT(*) as count
+            FROM voice_messages
+            WHERE role = 'user' AND readiness_score IS NOT NULL
+                AND timestamp >= NOW() - INTERVAL '%s days'
+            GROUP BY zone
+        """, (days,))
+        zone_rows = cur.fetchall()
+        
+        readiness_distribution = {"explore": 0, "transition": 0, "guide": 0}
+        for zr in zone_rows:
+            if zr[0] in readiness_distribution:
+                readiness_distribution[zr[0]] = zr[1]
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            "totalCalls": total_calls,
+            "totalMessages": total_messages,
+            "avgLatency": round(avg_latency, 1),
+            "peakReadiness": round(peak_readiness * 100, 1),
+            "avgReadiness": round(avg_readiness * 100, 1),
+            "bookingRate": round(booking_rate, 1),
+            "latencyTrends": latency_trends,
+            "readinessDistribution": readiness_distribution
+        })
+        
+    except Exception as e:
+        print(f"[SOMERA Admin] Stats error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/somera/calls", methods=["GET"])
+def somera_admin_calls():
+    """Get list of SOMERA Voice calls for admin dashboard."""
+    try:
+        range_param = request.args.get('range', '30d')
+        days = 30
+        if range_param == '7d':
+            days = 7
+        elif range_param == '24h':
+            days = 1
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT 
+                call_id,
+                MIN(timestamp) as started_at,
+                MAX(timestamp) as ended_at,
+                COUNT(*) as message_count,
+                AVG(CASE WHEN latency_ms > 0 THEN latency_ms END) as avg_latency,
+                MAX(readiness_score) as peak_readiness,
+                BOOL_OR(closure_type = 'booking_request') as had_booking
+            FROM voice_messages
+            WHERE timestamp >= NOW() - INTERVAL '%s days'
+            GROUP BY call_id
+            ORDER BY MIN(timestamp) DESC
+            LIMIT 50
+        """, (days,))
+        rows = cur.fetchall()
+        
+        calls = []
+        for row in rows:
+            calls.append({
+                "callId": row[0],
+                "startedAt": row[1].isoformat() if row[1] else None,
+                "endedAt": row[2].isoformat() if row[2] else None,
+                "messageCount": row[3] or 0,
+                "avgLatency": float(row[4]) if row[4] else None,
+                "peakReadiness": float(row[5]) if row[5] else 0,
+                "hadBooking": row[6] or False
+            })
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({"calls": calls})
+        
+    except Exception as e:
+        print(f"[SOMERA Admin] Calls error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/admin/somera/calls/<call_id>", methods=["GET"])
+def somera_admin_call_detail(call_id):
+    """Get detailed transcript for a specific SOMERA Voice call."""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT 
+                role, content, readiness_score, readiness_recommendation,
+                latency_ms, closure_type, timestamp
+            FROM voice_messages
+            WHERE call_id = %s
+            ORDER BY timestamp ASC
+        """, (call_id,))
+        rows = cur.fetchall()
+        
+        messages = []
+        for row in rows:
+            messages.append({
+                "role": row[0],
+                "content": row[1],
+                "readinessScore": float(row[2]) if row[2] else None,
+                "readinessRecommendation": row[3],
+                "latencyMs": float(row[4]) if row[4] else None,
+                "closureType": row[5],
+                "timestamp": row[6].isoformat() if row[6] else None
+            })
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            "callId": call_id,
+            "messages": messages
+        })
+        
+    except Exception as e:
+        print(f"[SOMERA Admin] Call detail error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def get_db_connection():
+    """Get PostgreSQL database connection."""
+    import psycopg2
+    try:
+        conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
+        return conn
+    except Exception as e:
+        print(f"Database connection error: {e}")
+        return None
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("WEBHOOK_PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
