@@ -16,7 +16,7 @@ export default function VoiceDemo() {
   const [liveTranscript, setLiveTranscript] = useState<string>('');
 
   useEffect(() => {
-    const publicKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
+    const publicKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || '135fdcab-d4e9-4729-ac09-a905d8793170';
     
     if (!publicKey) {
       setError('VAPI Public Key not configured. Please add NEXT_PUBLIC_VAPI_PUBLIC_KEY to environment variables.');
@@ -86,7 +86,7 @@ export default function VoiceDemo() {
   const startCall = useCallback(async () => {
     if (!vapi) return;
     
-    const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
+    const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || 'c09f6a3b-35d5-4e23-bd67-36299a4f44dd';
     
     if (!assistantId) {
       setError('VAPI Assistant ID not configured. Please add NEXT_PUBLIC_VAPI_ASSISTANT_ID to environment variables.');
