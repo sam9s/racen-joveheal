@@ -1343,7 +1343,7 @@ custom_llm_conversation_histories = {}
 voice_call_turn_counts = {}
 
 
-def save_voice_message_async(call_id: str, role: str, content: str, readiness_score: float = None, readiness_recommendation: str = None):
+def save_voice_message_async(call_id: str, role: str, content: str, readiness_score: float = None, readiness_recommendation: str = None, latency_ms: int = None, closure_type: str = None):
     """Save a voice message to the database in a background thread (non-blocking for latency)."""
     import threading
     
@@ -1363,16 +1363,10 @@ def save_voice_message_async(call_id: str, role: str, content: str, readiness_sc
                 ON CONFLICT (call_id) DO NOTHING
             """, (call_id,))
             
-            if readiness_score is not None:
-                cur.execute("""
-                    INSERT INTO voice_messages (call_id, role, content, readiness_score, readiness_recommendation, created_at)
-                    VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                """, (call_id, role, content, readiness_score, readiness_recommendation))
-            else:
-                cur.execute("""
-                    INSERT INTO voice_messages (call_id, role, content, created_at)
-                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
-                """, (call_id, role, content))
+            cur.execute("""
+                INSERT INTO voice_messages (call_id, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type, timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            """, (call_id, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type))
             
             conn.commit()
             cur.close()
@@ -1528,16 +1522,25 @@ def vapi_custom_llm():
                 if not skip_voice_optimization:
                     response_text = optimize_response_for_voice(response_text)
                 
-                save_voice_message_async(call_id, "assistant", response_text)
+                elapsed_ms = int((timing_module.time() - request_start) * 1000)
+                
+                closure_type_str = None
+                if closure["is_strong"]:
+                    closure_type_str = "strong_goodbye"
+                elif closure["is_closing"]:
+                    closure_type_str = "soft_closure"
+                elif booking:
+                    closure_type_str = "booking_request"
+                
+                save_voice_message_async(call_id, "assistant", response_text, latency_ms=elapsed_ms, closure_type=closure_type_str)
                 
                 history.append({"role": "user", "content": user_message})
                 history.append({"role": "assistant", "content": response_text})
                 custom_llm_conversation_histories[call_id] = history[-20:]
                 
-                elapsed_ms = (timing_module.time() - request_start) * 1000
                 print(f"[VAPI Custom LLM] SOMERA response: {response_text[:100]}...")
                 print(f"[VAPI Custom LLM] Readiness: {readiness_score:.0%} ({readiness_rec})")
-                print(f"[VAPI Custom LLM] Response latency: {elapsed_ms:.0f}ms")
+                print(f"[VAPI Custom LLM] Response latency: {elapsed_ms}ms")
                 
             except Exception as e:
                 print(f"[VAPI Custom LLM] SOMERA error: {e}")
