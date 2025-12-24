@@ -1368,32 +1368,52 @@ SOMERA_ERROR_MESSAGE = "I'm sorry, I'm experiencing some technical difficulties 
 
 
 def log_backend_error(error_type: str, endpoint: str, error_message: str, request_data: str = None, call_id: str = None):
-    """Log backend errors to database for monitoring and alerting."""
+    """Log backend errors to database for monitoring and alerting.
+    
+    Falls back to file logging if database is unavailable to ensure
+    no error evidence is lost during outages.
+    """
     import threading
+    import datetime
     
     def _log():
+        db_logged = False
         try:
             import psycopg2
             database_url = os.environ.get("DATABASE_URL")
-            if not database_url:
-                return
-            
-            conn = psycopg2.connect(database_url)
-            cur = conn.cursor()
-            
-            cur.execute("""
-                INSERT INTO backend_error_logs (error_type, endpoint, error_message, request_data, call_id)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (error_type, endpoint, error_message, request_data, call_id))
-            
-            conn.commit()
-            cur.close()
-            conn.close()
-            
-            print(f"[ERROR LOG] Logged {error_type} error for call {call_id}: {error_message[:100]}")
-            
-        except Exception as e:
-            print(f"[ERROR LOG] Failed to log error: {e}")
+            if database_url:
+                conn = psycopg2.connect(database_url)
+                cur = conn.cursor()
+                
+                cur.execute("""
+                    INSERT INTO backend_error_logs (error_type, endpoint, error_message, request_data, call_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (error_type, endpoint, error_message, request_data, call_id))
+                
+                conn.commit()
+                cur.close()
+                conn.close()
+                db_logged = True
+                
+                print(f"[ERROR LOG] Logged {error_type} error for call {call_id}: {error_message[:100]}")
+                
+        except Exception as db_error:
+            print(f"[ERROR LOG] Database logging failed: {db_error}")
+        
+        # Fallback: Always log to file as backup
+        if not db_logged:
+            try:
+                os.makedirs("logs", exist_ok=True)
+                timestamp = datetime.datetime.now().isoformat()
+                with open("logs/backend_errors.log", "a") as f:
+                    f.write(f"\n[{timestamp}] {error_type} | {endpoint} | call_id={call_id}\n")
+                    f.write(f"Error: {error_message}\n")
+                    if request_data:
+                        f.write(f"Request: {request_data[:500]}\n")
+                    f.write("-" * 50 + "\n")
+                print(f"[ERROR LOG] Fallback file logging completed for {error_type}")
+            except Exception as file_error:
+                print(f"[ERROR LOG] CRITICAL - Both DB and file logging failed: {file_error}")
     
     thread = threading.Thread(target=_log, daemon=True)
     thread.start()
@@ -1508,17 +1528,51 @@ def vapi_custom_llm():
     - Return response that VAPI speaks with ElevenLabs
     
     NO VAPI LLM INTERFERENCE - we have full control.
+    
+    CRITICAL SAFETY: ALL exceptions are caught and converted to graceful
+    error responses. We NEVER return 5xx which would trigger VAPI fallback to GPT.
+    
     Security: Validates VAPI_WEBHOOK_SECRET if configured.
     """
+    import time as timing_module
+    
+    # Helper function to return graceful error response
+    def graceful_error_response(stream_mode=False, call_id_val=None):
+        """Return a valid OpenAI response with error message - VAPI will speak this."""
+        if stream_mode:
+            return stream_openai_response(SOMERA_ERROR_MESSAGE, call_id_val or "error", end_call=False)
+        return jsonify({
+            "id": f"chatcmpl-error-{timing_module.time()}",
+            "object": "chat.completion",
+            "created": int(timing_module.time()),
+            "model": "somera-voice-1",
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": SOMERA_ERROR_MESSAGE},
+                "finish_reason": "stop"
+            }],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 20, "total_tokens": 20}
+        })
+    
+    # Auth check - still return 401 for security (VAPI will handle this)
     if not validate_vapi_request():
         print(f"[VAPI Custom LLM] Rejected request - invalid or missing authentication")
         return jsonify({"error": "Unauthorized"}), 401
     
-    import time as timing_module
     request_start = timing_module.time()
     
+    # SAFE PARSING: Wrap all request parsing in try-except
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
+    except Exception as parse_error:
+        print(f"[VAPI Custom LLM] Request parse error: {parse_error}")
+        try:
+            log_backend_error("request_parse_error", "/api/vapi/chat/completions", str(parse_error))
+        except:
+            pass
+        return graceful_error_response(stream_mode=False)
+    
+    try:
         if data:
             print(f"[VAPI Custom LLM] Raw request keys: {list(data.keys())}")
         messages = data.get("messages", [])
@@ -1642,35 +1696,27 @@ def vapi_custom_llm():
         # CRITICAL: Never return 500 - this triggers VAPI fallback to GPT!
         # Instead, return a graceful spoken error message
         print(f"[VAPI Custom LLM] CRITICAL ERROR - Returning graceful error response: {e}")
-        import traceback
-        error_details = traceback.format_exc()
         
-        # Log the error to database for monitoring
-        log_backend_error(
-            error_type="vapi_endpoint_critical_error",
-            endpoint="/api/vapi/chat/completions",
-            error_message=f"{str(e)}\n{error_details}",
-            request_data=str(request.get_json())[:1000] if request.get_json() else None,
-            call_id=None
-        )
+        # Log error (wrapped in try-except to never interfere with response)
+        try:
+            import traceback
+            error_details = traceback.format_exc()
+            try:
+                raw_data = request.data.decode('utf-8')[:1000] if request.data else None
+            except:
+                raw_data = None
+            log_backend_error(
+                error_type="vapi_endpoint_critical_error",
+                endpoint="/api/vapi/chat/completions",
+                error_message=f"{str(e)}\n{error_details}",
+                request_data=raw_data,
+                call_id=None
+            )
+        except:
+            pass  # Never let logging failure prevent graceful response
         
-        # Return a valid response with error message - VAPI will speak this
-        # This prevents VAPI from falling back to its own GPT
-        return jsonify({
-            "id": f"chatcmpl-error-{__import__('time').time()}",
-            "object": "chat.completion",
-            "created": int(__import__('time').time()),
-            "model": "somera-voice-1",
-            "choices": [{
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": SOMERA_ERROR_MESSAGE
-                },
-                "finish_reason": "stop"
-            }],
-            "usage": {"prompt_tokens": 0, "completion_tokens": 20, "total_tokens": 20}
-        })
+        # Return graceful error using helper function
+        return graceful_error_response(stream_mode=False)
 
 
 def stream_openai_response(response_text: str, call_id: str, end_call: bool = False):
@@ -1679,6 +1725,9 @@ def stream_openai_response(response_text: str, call_id: str, end_call: bool = Fa
     
     VAPI expects SSE with 'data: {...}' format matching OpenAI's streaming.
     First chunk MUST include 'role: assistant' for OpenAI-compatible clients.
+    
+    CRITICAL: All errors are caught and converted to graceful error messages
+    to prevent VAPI from falling back to its own GPT.
     
     Args:
         response_text: The text to speak
@@ -1689,34 +1738,10 @@ def stream_openai_response(response_text: str, call_id: str, end_call: bool = Fa
     import json
     
     def generate():
-        chunk_id = f"chatcmpl-{call_id}"
-        
-        role_chunk = {
-            "id": chunk_id,
-            "object": "chat.completion.chunk",
-            "created": int(time.time()),
-            "model": "somera-voice-1",
-            "choices": [{
-                "index": 0,
-                "delta": {
-                    "role": "assistant",
-                    "content": ""
-                },
-                "finish_reason": None
-            }]
-        }
-        yield f"data: {json.dumps(role_chunk)}\n\n"
-        
-        words = response_text.split()
-        chunk_size = 3
-        
-        for i in range(0, len(words), chunk_size):
-            chunk_words = words[i:i + chunk_size]
-            chunk_text = " ".join(chunk_words)
-            if i > 0:
-                chunk_text = " " + chunk_text
+        try:
+            chunk_id = f"chatcmpl-{call_id}"
             
-            chunk_data = {
+            role_chunk = {
                 "id": chunk_id,
                 "object": "chat.completion.chunk",
                 "created": int(time.time()),
@@ -1724,51 +1749,115 @@ def stream_openai_response(response_text: str, call_id: str, end_call: bool = Fa
                 "choices": [{
                     "index": 0,
                     "delta": {
-                        "content": chunk_text
+                        "role": "assistant",
+                        "content": ""
                     },
                     "finish_reason": None
                 }]
             }
-            yield f"data: {json.dumps(chunk_data)}\n\n"
-        
-        if end_call:
-            tool_call_chunk = {
-                "id": chunk_id,
+            yield f"data: {json.dumps(role_chunk)}\n\n"
+            
+            words = response_text.split()
+            chunk_size = 3
+            
+            for i in range(0, len(words), chunk_size):
+                chunk_words = words[i:i + chunk_size]
+                chunk_text = " ".join(chunk_words)
+                if i > 0:
+                    chunk_text = " " + chunk_text
+                
+                chunk_data = {
+                    "id": chunk_id,
+                    "object": "chat.completion.chunk",
+                    "created": int(time.time()),
+                    "model": "somera-voice-1",
+                    "choices": [{
+                        "index": 0,
+                        "delta": {
+                            "content": chunk_text
+                        },
+                        "finish_reason": None
+                    }]
+                }
+                yield f"data: {json.dumps(chunk_data)}\n\n"
+            
+            if end_call:
+                tool_call_chunk = {
+                    "id": chunk_id,
+                    "object": "chat.completion.chunk",
+                    "created": int(time.time()),
+                    "model": "somera-voice-1",
+                    "choices": [{
+                        "index": 0,
+                        "delta": {
+                            "tool_calls": [{
+                                "id": f"call_endCall_{call_id[:8]}",
+                                "type": "function",
+                                "function": {
+                                    "name": "endCall",
+                                    "arguments": "{}"
+                                }
+                            }]
+                        },
+                        "finish_reason": "tool_calls"
+                    }]
+                }
+                yield f"data: {json.dumps(tool_call_chunk)}\n\n"
+                print(f"[VAPI Custom LLM] Sent endCall tool call to terminate call {call_id}")
+            else:
+                done_data = {
+                    "id": chunk_id,
+                    "object": "chat.completion.chunk",
+                    "created": int(time.time()),
+                    "model": "somera-voice-1",
+                    "choices": [{
+                        "index": 0,
+                        "delta": {},
+                        "finish_reason": "stop"
+                    }]
+                }
+                yield f"data: {json.dumps(done_data)}\n\n"
+            
+            yield "data: [DONE]\n\n"
+            
+        except Exception as stream_error:
+            # CRITICAL: Catch any streaming errors and return graceful error message
+            print(f"[VAPI Custom LLM] Streaming error - sending graceful error: {stream_error}")
+            log_backend_error(
+                error_type="streaming_error",
+                endpoint="/api/vapi/chat/completions",
+                error_message=str(stream_error),
+                call_id=call_id
+            )
+            # Send error message as valid SSE chunks
+            error_chunk_id = f"chatcmpl-error-{call_id}"
+            error_role = {
+                "id": error_chunk_id,
                 "object": "chat.completion.chunk",
                 "created": int(time.time()),
                 "model": "somera-voice-1",
-                "choices": [{
-                    "index": 0,
-                    "delta": {
-                        "tool_calls": [{
-                            "id": f"call_endCall_{call_id[:8]}",
-                            "type": "function",
-                            "function": {
-                                "name": "endCall",
-                                "arguments": "{}"
-                            }
-                        }]
-                    },
-                    "finish_reason": "tool_calls"
-                }]
+                "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]
             }
-            yield f"data: {json.dumps(tool_call_chunk)}\n\n"
-            print(f"[VAPI Custom LLM] Sent endCall tool call to terminate call {call_id}")
-        else:
-            done_data = {
-                "id": chunk_id,
+            yield f"data: {json.dumps(error_role)}\n\n"
+            
+            error_content = {
+                "id": error_chunk_id,
                 "object": "chat.completion.chunk",
                 "created": int(time.time()),
                 "model": "somera-voice-1",
-                "choices": [{
-                    "index": 0,
-                    "delta": {},
-                    "finish_reason": "stop"
-                }]
+                "choices": [{"index": 0, "delta": {"content": SOMERA_ERROR_MESSAGE}, "finish_reason": None}]
             }
-            yield f"data: {json.dumps(done_data)}\n\n"
-        
-        yield "data: [DONE]\n\n"
+            yield f"data: {json.dumps(error_content)}\n\n"
+            
+            error_done = {
+                "id": error_chunk_id,
+                "object": "chat.completion.chunk",
+                "created": int(time.time()),
+                "model": "somera-voice-1",
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]
+            }
+            yield f"data: {json.dumps(error_done)}\n\n"
+            yield "data: [DONE]\n\n"
     
     return Response(
         generate(),
