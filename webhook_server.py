@@ -1472,7 +1472,12 @@ def vapi_custom_llm():
     - Return response that VAPI speaks with ElevenLabs
     
     NO VAPI LLM INTERFERENCE - we have full control.
+    Security: Validates VAPI_WEBHOOK_SECRET if configured.
     """
+    if not validate_vapi_request():
+        print(f"[VAPI Custom LLM] Rejected request - invalid or missing authentication")
+        return jsonify({"error": "Unauthorized"}), 401
+    
     import time as timing_module
     request_start = timing_module.time()
     
