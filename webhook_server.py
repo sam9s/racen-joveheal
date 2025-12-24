@@ -1435,6 +1435,8 @@ def vapi_custom_llm():
                 user_message = msg.get("content", "")
                 break
         
+        should_end_call = False
+        
         if not user_message:
             response_text = "Hello! I'm SOMERA, your coaching companion. How are you feeling today?"
             save_voice_message_to_db(call_id, "assistant", response_text)
@@ -1492,7 +1494,7 @@ def vapi_custom_llm():
                 response_text = "I'm here with you. Could you share that with me again?"
         
         if stream:
-            return stream_openai_response(response_text, call_id)
+            return stream_openai_response(response_text, call_id, end_call=should_end_call)
         else:
             return jsonify({
                 "id": f"chatcmpl-{call_id}",
