@@ -37,6 +37,111 @@ GREETING_PATTERNS = [
     "namaste", "hola", "bonjour"
 ]
 
+CLOSURE_PATTERNS = [
+    "thank you", "thanks", "thank you so much", "thanks so much",
+    "that's all", "thats all", "that is all", "that would be all",
+    "i'm good now", "im good now", "i am good now",
+    "goodbye", "good bye", "bye", "bye bye", "see you", "see ya",
+    "take care", "have a nice day", "have a good day", "have a great day",
+    "i'll get in touch", "i will get in touch", "i will contact",
+    "i'll contact", "will reach out", "i'll reach out",
+    "this was helpful", "that was helpful", "you were helpful",
+    "appreciate it", "appreciate your help", "appreciate your time",
+    "nothing else", "no more questions", "no other questions",
+    "i'm done", "im done", "i am done", "we're done", "were done",
+    "that's it", "thats it", "that is it",
+    "i should go", "i have to go", "need to go", "gotta go",
+    "talk later", "speak later", "chat later", "connect later"
+]
+
+STRONG_CLOSURE_PATTERNS = [
+    "goodbye", "bye", "bye bye", "that's all", "thats all", 
+    "that would be all", "i'm done", "im done", "nothing else",
+    "that's it", "thats it", "i have to go", "gotta go"
+]
+
+BOOKING_REQUEST_PATTERNS = [
+    "how can i contact", "how to contact", "how do i contact",
+    "connect with shweta", "contact shweta", "reach shweta",
+    "book a session", "book a call", "schedule a call", "schedule a session",
+    "one on one", "one-on-one", "1 on 1", "1-on-1",
+    "discovery call", "private session", "personal session",
+    "work with shweta", "work directly with",
+    "how to reach", "how can i reach", "get in touch",
+    "talk to shweta", "speak with shweta", "meet shweta",
+    "reach out to her", "reach out to shweta", "contact her"
+]
+
+
+def is_closure_signal(message: str, conversation_history: List[dict] = None) -> dict:
+    """
+    Detect if the user is signaling they want to end the conversation.
+    
+    Returns:
+        dict with:
+        - is_closing: bool - True if closure signal detected
+        - is_strong: bool - True if strong closure (should offer to end call)
+        - pattern_matched: str - The pattern that matched (for debugging)
+    """
+    msg_lower = message.lower().strip()
+    
+    for pattern in STRONG_CLOSURE_PATTERNS:
+        if pattern in msg_lower:
+            return {
+                "is_closing": True,
+                "is_strong": True,
+                "pattern_matched": pattern
+            }
+    
+    prior_user_turns = len([m for m in (conversation_history or []) if m.get("role") == "user"])
+    
+    for pattern in CLOSURE_PATTERNS:
+        if pattern in msg_lower:
+            if prior_user_turns >= 2:
+                return {
+                    "is_closing": True,
+                    "is_strong": False,
+                    "pattern_matched": pattern
+                }
+    
+    return {
+        "is_closing": False,
+        "is_strong": False,
+        "pattern_matched": None
+    }
+
+
+def is_booking_request(message: str) -> bool:
+    """Check if the user is asking how to connect with Shweta for a session."""
+    import re
+    msg_lower = message.lower().strip()
+    
+    for pattern in BOOKING_REQUEST_PATTERNS:
+        if re.search(r'\b' + re.escape(pattern) + r'\b', msg_lower):
+            return True
+    
+    reach_patterns = [
+        r'how\s+(do\s+i|can\s+i|to)\s+reach\s+out',
+        r'reach\s+out\s+to\s+(her|shweta)',
+        r'get\s+in\s+touch\s+with\s+(her|shweta)',
+    ]
+    for pattern in reach_patterns:
+        if re.search(pattern, msg_lower):
+            return True
+    
+    return False
+
+
+def get_voice_friendly_booking_response() -> str:
+    """
+    Return a voice-friendly booking response that doesn't say 'click this link'.
+    The transcript UI will show the clickable link.
+    
+    Note: This response should NOT be passed through optimize_response_for_voice
+    as it contains a URL that needs to remain intact for the transcript.
+    """
+    return """I'd be happy to help you connect with Shweta! She offers a complimentary 15-minute Discovery Call where you can discuss your challenges and see how her coaching can support you. To book your call, visit joveheal dot com slash apply for discovery. The direct link is https://bit.ly/apply-for-discovery - you can find it in the transcript of our conversation. Is there anything else I can help you with before we wrap up?"""
+
 
 def is_greeting(message: str) -> bool:
     """Check if the message is a simple greeting that doesn't need coaching content."""
