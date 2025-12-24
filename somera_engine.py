@@ -51,13 +51,21 @@ CLOSURE_PATTERNS = [
     "i'm done", "im done", "i am done", "we're done", "were done",
     "that's it", "thats it", "that is it",
     "i should go", "i have to go", "need to go", "gotta go",
-    "talk later", "speak later", "chat later", "connect later"
+    "talk later", "speak later", "chat later", "connect later",
+    "farewell", "ta-ta", "tata", "tada", "ciao", "adios",
+    "later", "cheers", "peace out", "peace", "catch you later",
+    "until next time", "see you soon", "see you later",
+    "that's everything", "thats everything", "i'm all set", "im all set",
+    "we're good", "were good", "all done", "all set",
+    "signing off", "over and out", "take it easy"
 ]
 
 STRONG_CLOSURE_PATTERNS = [
     "goodbye", "bye", "bye bye", "that's all", "thats all", 
     "that would be all", "i'm done", "im done", "nothing else",
-    "that's it", "thats it", "i have to go", "gotta go"
+    "that's it", "thats it", "i have to go", "gotta go",
+    "farewell", "ciao", "adios", "ta-ta", "tata", "tada",
+    "all done", "signing off", "over and out"
 ]
 
 BOOKING_REQUEST_PATTERNS = [
