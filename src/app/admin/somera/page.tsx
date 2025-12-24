@@ -82,17 +82,37 @@ export default function SomeraAdminDashboard() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [newCallsCount, setNewCallsCount] = useState(0);
 
   useEffect(() => {
     checkAuth();
   }, [status]);
 
   useEffect(() => {
+    if (isAuthenticated && calls.length > 0) {
+      const lastViewed = localStorage.getItem('somera_last_viewed_calls');
+      if (lastViewed) {
+        const lastViewedDate = new Date(lastViewed);
+        const newCalls = calls.filter(call => new Date(call.startedAt) > lastViewedDate);
+        setNewCallsCount(newCalls.length);
+      } else {
+        setNewCallsCount(calls.length);
+      }
+    }
+  }, [calls, isAuthenticated]);
+
+  useEffect(() => {
+    if (activeTab === 'transcripts' && calls.length > 0) {
+      localStorage.setItem('somera_last_viewed_calls', new Date().toISOString());
+      setNewCallsCount(0);
+    }
+  }, [activeTab, calls]);
+
+  useEffect(() => {
     if (isAuthenticated) {
+      fetchCalls();
       if (activeTab === 'analytics' || activeTab === 'insights') {
         fetchStats();
-      } else if (activeTab === 'transcripts') {
-        fetchCalls();
       }
     }
   }, [timeRange, activeTab, isAuthenticated]);
@@ -411,7 +431,7 @@ export default function SomeraAdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('transcripts')}
-            className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${
+            className={`px-6 py-3 rounded-xl font-medium transition-all flex items-center gap-2 relative ${
               activeTab === 'transcripts'
                 ? 'bg-purple-500 text-white'
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
@@ -421,6 +441,11 @@ export default function SomeraAdminDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
             Transcripts
+            {newCallsCount > 0 && activeTab !== 'transcripts' && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 min-w-5 px-1 flex items-center justify-center animate-pulse">
+                {newCallsCount > 9 ? '9+' : newCallsCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('insights')}
