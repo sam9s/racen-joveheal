@@ -1,0 +1,16 @@
+[server]
+port = 5001
+address = "0.0.0.0"
+headless = true
+enableCORS = true
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#8b5cf6"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f5f3ff"
+textColor = "#1f2937"
+font = "sans serif"
