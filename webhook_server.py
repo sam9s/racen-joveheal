@@ -1362,6 +1362,42 @@ def optimize_response_for_voice(text: str) -> str:
 custom_llm_conversation_histories = {}
 voice_call_turn_counts = {}
 
+# CRITICAL: Graceful error message for VAPI when backend fails
+# This ensures SOMERA speaks an error message instead of VAPI falling back to GPT
+SOMERA_ERROR_MESSAGE = "I'm sorry, I'm experiencing some technical difficulties right now. Please try again in a moment, or reach out to our team directly for support."
+
+
+def log_backend_error(error_type: str, endpoint: str, error_message: str, request_data: str = None, call_id: str = None):
+    """Log backend errors to database for monitoring and alerting."""
+    import threading
+    
+    def _log():
+        try:
+            import psycopg2
+            database_url = os.environ.get("DATABASE_URL")
+            if not database_url:
+                return
+            
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            
+            cur.execute("""
+                INSERT INTO backend_error_logs (error_type, endpoint, error_message, request_data, call_id)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (error_type, endpoint, error_message, request_data, call_id))
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            print(f"[ERROR LOG] Logged {error_type} error for call {call_id}: {error_message[:100]}")
+            
+        except Exception as e:
+            print(f"[ERROR LOG] Failed to log error: {e}")
+    
+    thread = threading.Thread(target=_log, daemon=True)
+    thread.start()
+
 
 def save_voice_message_async(call_id: str, role: str, content: str, readiness_score: float = None, readiness_recommendation: str = None, latency_ms: int = None, closure_type: str = None):
     """Save a voice message to the database in a background thread (non-blocking for latency)."""
@@ -1568,7 +1604,15 @@ def vapi_custom_llm():
                 print(f"[VAPI Custom LLM] Response latency: {elapsed_ms}ms")
                 
             except Exception as e:
-                print(f"[VAPI Custom LLM] SOMERA error: {e}")
+                print(f"[VAPI Custom LLM] SOMERA processing error: {e}")
+                import traceback
+                log_backend_error(
+                    error_type="somera_processing_error",
+                    endpoint="/api/vapi/chat/completions",
+                    error_message=f"{str(e)}\n{traceback.format_exc()}",
+                    request_data=user_message[:500] if user_message else None,
+                    call_id=call_id
+                )
                 response_text = "I'm here with you. Could you share that with me again?"
         
         if stream:
@@ -1595,8 +1639,38 @@ def vapi_custom_llm():
             })
             
     except Exception as e:
-        print(f"[VAPI Custom LLM] Error: {e}")
-        return jsonify({"error": str(e)}), 500
+        # CRITICAL: Never return 500 - this triggers VAPI fallback to GPT!
+        # Instead, return a graceful spoken error message
+        print(f"[VAPI Custom LLM] CRITICAL ERROR - Returning graceful error response: {e}")
+        import traceback
+        error_details = traceback.format_exc()
+        
+        # Log the error to database for monitoring
+        log_backend_error(
+            error_type="vapi_endpoint_critical_error",
+            endpoint="/api/vapi/chat/completions",
+            error_message=f"{str(e)}\n{error_details}",
+            request_data=str(request.get_json())[:1000] if request.get_json() else None,
+            call_id=None
+        )
+        
+        # Return a valid response with error message - VAPI will speak this
+        # This prevents VAPI from falling back to its own GPT
+        return jsonify({
+            "id": f"chatcmpl-error-{__import__('time').time()}",
+            "object": "chat.completion",
+            "created": int(__import__('time').time()),
+            "model": "somera-voice-1",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": SOMERA_ERROR_MESSAGE
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 20, "total_tokens": 20}
+        })
 
 
 def stream_openai_response(response_text: str, call_id: str, end_call: bool = False):
