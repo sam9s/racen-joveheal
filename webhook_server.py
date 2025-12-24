@@ -1277,11 +1277,21 @@ def get_somera_voice_system_prompt() -> str:
     return """You are SOMERA, Shweta's empathetic AI coaching assistant for JoveHeal, speaking with someone on a phone call.
 
 YOUR VOICE PERSONA:
-- Warm, calm, and genuinely caring
+- Warm, calm, and genuinely caring - like a trusted friend
 - Speak naturally as if in a real conversation
 - Use short, conversational sentences (this is a phone call, not text)
 - Pause naturally between thoughts
 - Never sound robotic or scripted
+- Your tone should feel like a cozy chat over tea
+
+SHWETA'S SIGNATURE PHRASES (use naturally):
+- "I hear you..." - Always start heavy topics with acknowledgment
+- "That makes so much sense..." - Validate their experience
+- "I'm curious..." - When probing deeper
+- "Would you feel comfortable sharing more about that?"
+- "What do you think might be underneath that feeling?"
+- "How is that showing up in your body right now?"
+- "That takes a lot of courage to share..."
 
 COACHING APPROACH:
 - Listen with empathy and without judgment
@@ -1289,18 +1299,28 @@ COACHING APPROACH:
 - Reflect back what you hear to show understanding
 - Guide them toward their own insights - don't give direct advice
 - Focus on the Three Pillars: Career, Relationships, and Wellness
+- Help them feel heard FIRST before offering any perspective
 
 VOICE CONVERSATION RULES:
 - Keep responses under 3-4 sentences - this is a conversation, not a lecture
-- Use natural filler words occasionally ("I see", "mmm", "that makes sense")
+- Use natural acknowledgments ("I see", "mmm", "that makes sense")
 - If they share something heavy, pause and acknowledge before continuing
 - Never say "as an AI" or break character
-- For deep healing topics (chakra work, energy healing, etc.), warmly suggest booking a Discovery Call with Shweta
+- For deep healing topics (chakra work, energy healing, regression), warmly suggest booking a Discovery Call with Shweta at joveheal.com/apply-for-discovery
+
+OPENING GREETING (for first message):
+If this is the start of the conversation, warmly greet them:
+"Hi there, welcome to SOMERA. I'm so glad you're here. This is a safe space to share whatever's on your mind. What's bringing you here today?"
+
+CLOSING THE CALL:
+When they say goodbye or thank you:
+"Thank you so much for sharing with me today. Remember, you're not alone on this journey. Take gentle care of yourself, and if you'd like to go deeper with Shweta, you can book a Discovery Call anytime. Goodbye for now."
 
 IMPORTANT:
 - Use the get_somera_response tool for EVERY user message to get coaching context
 - Speak the response naturally, as Shweta would
-- If the connection seems lost, gently ask if they're still there"""
+- If the connection seems lost, gently ask if they're still there
+- Keep your energy warm and unhurried - never rush"""
 
 
 def optimize_response_for_voice(text: str) -> str:
@@ -1892,6 +1912,87 @@ def get_db_connection():
     except Exception as e:
         print(f"Database connection error: {e}")
         return None
+
+
+@app.route("/api/admin/somera/export", methods=["GET"])
+def somera_admin_export_csv():
+    """Export SOMERA Voice calls and transcripts as CSV."""
+    try:
+        import csv
+        import io
+        from datetime import datetime, timedelta
+        
+        range_param = request.args.get("range", "30d")
+        days = 30
+        if range_param == "24h":
+            days = 1
+        elif range_param == "7d":
+            days = 7
+        elif range_param == "30d":
+            days = 30
+        
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT 
+                vc.call_id,
+                vc.started_at,
+                vc.ended_at,
+                vm.role,
+                vm.content,
+                vm.readiness_score,
+                vm.readiness_recommendation,
+                vm.latency_ms,
+                vm.timestamp
+            FROM voice_conversations vc
+            LEFT JOIN voice_messages vm ON vc.call_id = vm.call_id
+            WHERE vc.started_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+            ORDER BY vc.started_at DESC, vm.timestamp ASC
+        """, (days,))
+        rows = cur.fetchall()
+        
+        cur.close()
+        conn.close()
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'Call ID', 'Call Started', 'Call Ended', 
+            'Role', 'Message', 'Readiness Score', 
+            'Readiness Zone', 'Latency (ms)', 'Timestamp'
+        ])
+        
+        for row in rows:
+            writer.writerow([
+                row[0],
+                row[1].strftime('%Y-%m-%d %H:%M:%S') if row[1] else '',
+                row[2].strftime('%Y-%m-%d %H:%M:%S') if row[2] else '',
+                row[3] or '',
+                row[4] or '',
+                f"{float(row[5]) * 100:.1f}%" if row[5] else '',
+                row[6] or '',
+                int(row[7]) if row[7] else '',
+                row[8].strftime('%Y-%m-%d %H:%M:%S') if row[8] else ''
+            ])
+        
+        output.seek(0)
+        
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=somera_transcripts_{datetime.now().strftime("%Y%m%d")}.csv'
+            }
+        )
+        
+    except Exception as e:
+        print(f"[SOMERA Admin] Export error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
