@@ -24,6 +24,7 @@ from emotional_patterns import (
     get_cross_pillar_awareness_context,
     build_enhanced_search_query
 )
+from readiness_scoring import calculate_readiness_score, get_transition_context
 
 _openai_client = None
 
@@ -356,11 +357,20 @@ When appropriate, gently probe if they notice similar feelings in other areas:
     solution_mode = is_solution_requested(user_message, conversation_history)
     conversation_turns = count_conversation_turns(conversation_history)
     
+    readiness_result = calculate_readiness_score(user_message, conversation_history)
+    readiness_context = get_transition_context(readiness_result)
+    
     print(f"[SOMERA Debug - Non-stream] Message: '{user_message[:50]}...', Solution mode: {solution_mode}, Turns: {conversation_turns}")
+    print(f"[SOMERA Debug - Non-stream] Readiness: {readiness_result['total_score']:.1%} ({readiness_result['recommendation']})")
+    
+    readiness_guide = readiness_result["recommendation"] == "guide"
+    readiness_transition = readiness_result["recommendation"] == "transition"
+    depth_guide = conversation_turns >= 5
     
     solution_mode_directive = ""
-    if solution_mode or conversation_turns >= 5:
-        print(f"[SOMERA Debug - Non-stream] SOLUTION MODE ACTIVATED!")
+    
+    if solution_mode:
+        print(f"[SOMERA Debug - Non-stream] EXPLICIT SOLUTION MODE ACTIVATED!")
         solution_mode_directive = """
 
 === ⚠️ SOLUTION MODE ACTIVATED - CRITICAL INSTRUCTION ===
@@ -394,6 +404,35 @@ The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PR
 
 5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom, not gathering more information. Give them something valuable to take away RIGHT NOW.
 """
+    elif readiness_guide or depth_guide:
+        print(f"[SOMERA Debug - Non-stream] READINESS-BASED GUIDANCE MODE")
+        solution_mode_directive = f"""
+
+=== GUIDANCE MODE - GENTLE TRANSITION ===
+
+Based on conversation signals, the user may be ready to receive perspective and insights.
+Readiness score: {readiness_result['total_score']:.0%}
+
+**BALANCED APPROACH:**
+
+1. **Lead with empathy** - Acknowledge their experience with 1-2 warm sentences
+
+2. **Offer 1-2 perspectives** from the coaching content:
+   - Present insights as invitations, not prescriptions
+   - "One thing that often helps in situations like this..."
+   - "Something worth considering..."
+
+3. **Leave space for their response** - End with a gentle check-in:
+   - "Does any of this resonate with you?"
+   - "Would you like to explore this further?"
+
+4. **Stay curious** - You may still ask ONE thoughtful follow-up question if it serves their exploration
+
+Balance: 50% acknowledgment/empathy, 50% gentle guidance.
+"""
+    elif readiness_transition and readiness_context:
+        print(f"[SOMERA Debug - Non-stream] READINESS TRANSITION MODE")
+        solution_mode_directive = readiness_context
     
     if has_relevant_content:
         augmented_prompt = f"""{system_prompt}
@@ -551,11 +590,20 @@ When appropriate, gently probe if they notice similar feelings in other areas:
     solution_mode = is_solution_requested(user_message, conversation_history)
     conversation_turns = count_conversation_turns(conversation_history)
     
+    readiness_result = calculate_readiness_score(user_message, conversation_history)
+    readiness_context = get_transition_context(readiness_result)
+    
     print(f"[SOMERA Debug - Stream] Message: '{user_message[:50]}...', Solution mode: {solution_mode}, Turns: {conversation_turns}")
+    print(f"[SOMERA Debug - Stream] Readiness: {readiness_result['total_score']:.1%} ({readiness_result['recommendation']})")
+    
+    readiness_guide = readiness_result["recommendation"] == "guide"
+    readiness_transition = readiness_result["recommendation"] == "transition"
+    depth_guide = conversation_turns >= 5
     
     solution_mode_directive = ""
-    if solution_mode or conversation_turns >= 5:
-        print(f"[SOMERA Debug - Stream] SOLUTION MODE ACTIVATED!")
+    
+    if solution_mode:
+        print(f"[SOMERA Debug - Stream] EXPLICIT SOLUTION MODE ACTIVATED!")
         solution_mode_directive = """
 
 === ⚠️ SOLUTION MODE ACTIVATED - CRITICAL INSTRUCTION ===
@@ -589,6 +637,35 @@ The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PR
 
 5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom, not gathering more information. Give them something valuable to take away RIGHT NOW.
 """
+    elif readiness_guide or depth_guide:
+        print(f"[SOMERA Debug - Stream] READINESS-BASED GUIDANCE MODE")
+        solution_mode_directive = f"""
+
+=== GUIDANCE MODE - GENTLE TRANSITION ===
+
+Based on conversation signals, the user may be ready to receive perspective and insights.
+Readiness score: {readiness_result['total_score']:.0%}
+
+**BALANCED APPROACH:**
+
+1. **Lead with empathy** - Acknowledge their experience with 1-2 warm sentences
+
+2. **Offer 1-2 perspectives** from the coaching content:
+   - Present insights as invitations, not prescriptions
+   - "One thing that often helps in situations like this..."
+   - "Something worth considering..."
+
+3. **Leave space for their response** - End with a gentle check-in:
+   - "Does any of this resonate with you?"
+   - "Would you like to explore this further?"
+
+4. **Stay curious** - You may still ask ONE thoughtful follow-up question if it serves their exploration
+
+Balance: 50% acknowledgment/empathy, 50% gentle guidance.
+"""
+    elif readiness_transition and readiness_context:
+        print(f"[SOMERA Debug - Stream] READINESS TRANSITION MODE")
+        solution_mode_directive = readiness_context
     
     if is_simple_greeting:
         augmented_prompt = f"""{system_prompt}
