@@ -22,8 +22,8 @@
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| "Connecting..." UI | Show connection status with animations | Starting now |
-| VAPI Latency Tuning | Target 2-3 second response time (currently 3-5s) | Next |
+| "Connecting..." UI | Show connection status with animations | ✅ Complete |
+| VAPI Latency Tuning | Target 2-3 second response time (currently 3-5s) | Backend optimized, VAPI dashboard pending |
 
 ---
 

@@ -1343,6 +1343,48 @@ custom_llm_conversation_histories = {}
 voice_call_turn_counts = {}
 
 
+def save_voice_message_async(call_id: str, role: str, content: str, readiness_score: float = None, readiness_recommendation: str = None):
+    """Save a voice message to the database in a background thread (non-blocking for latency)."""
+    import threading
+    
+    def _save():
+        try:
+            import psycopg2
+            database_url = os.environ.get("DATABASE_URL")
+            if not database_url:
+                return
+            
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor()
+            
+            cur.execute("""
+                INSERT INTO voice_conversations (call_id, started_at)
+                VALUES (%s, CURRENT_TIMESTAMP)
+                ON CONFLICT (call_id) DO NOTHING
+            """, (call_id,))
+            
+            if readiness_score is not None:
+                cur.execute("""
+                    INSERT INTO voice_messages (call_id, role, content, readiness_score, readiness_recommendation, created_at)
+                    VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                """, (call_id, role, content, readiness_score, readiness_recommendation))
+            else:
+                cur.execute("""
+                    INSERT INTO voice_messages (call_id, role, content, created_at)
+                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                """, (call_id, role, content))
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+        except Exception as e:
+            print(f"[Voice DB Async] Error: {e}")
+    
+    thread = threading.Thread(target=_save, daemon=True)
+    thread.start()
+
+
 def save_voice_message_to_db(call_id: str, role: str, content: str, readiness_score: float = None, readiness_recommendation: str = None):
     """Save a voice conversation message to the database."""
     try:
@@ -1417,6 +1459,9 @@ def vapi_custom_llm():
     
     NO VAPI LLM INTERFERENCE - we have full control.
     """
+    import time as timing_module
+    request_start = timing_module.time()
+    
     try:
         data = request.get_json()
         if data:
@@ -1439,7 +1484,7 @@ def vapi_custom_llm():
         
         if not user_message:
             response_text = "Hello! I'm SOMERA, your coaching companion. How are you feeling today?"
-            save_voice_message_to_db(call_id, "assistant", response_text)
+            save_voice_message_async(call_id, "assistant", response_text)
         else:
             history = custom_llm_conversation_histories.get(call_id, [])
             
@@ -1451,7 +1496,7 @@ def vapi_custom_llm():
                 readiness_score = readiness_result.get("total_score", 0)
                 readiness_rec = readiness_result.get("recommendation", "explore")
                 
-                save_voice_message_to_db(call_id, "user", user_message, readiness_score, readiness_rec)
+                save_voice_message_async(call_id, "user", user_message, readiness_score, readiness_rec)
                 
                 closure = is_closure_signal(user_message, history)
                 booking = is_booking_request(user_message)
@@ -1480,14 +1525,16 @@ def vapi_custom_llm():
                 if not skip_voice_optimization:
                     response_text = optimize_response_for_voice(response_text)
                 
-                save_voice_message_to_db(call_id, "assistant", response_text)
+                save_voice_message_async(call_id, "assistant", response_text)
                 
                 history.append({"role": "user", "content": user_message})
                 history.append({"role": "assistant", "content": response_text})
                 custom_llm_conversation_histories[call_id] = history[-20:]
                 
+                elapsed_ms = (timing_module.time() - request_start) * 1000
                 print(f"[VAPI Custom LLM] SOMERA response: {response_text[:100]}...")
                 print(f"[VAPI Custom LLM] Readiness: {readiness_score:.0%} ({readiness_rec})")
+                print(f"[VAPI Custom LLM] Response latency: {elapsed_ms:.0f}ms")
                 
             except Exception as e:
                 print(f"[VAPI Custom LLM] SOMERA error: {e}")
