@@ -1340,6 +1340,69 @@ def optimize_response_for_voice(text: str) -> str:
 
 
 custom_llm_conversation_histories = {}
+voice_call_turn_counts = {}
+
+
+def save_voice_message_to_db(call_id: str, role: str, content: str, readiness_score: float = None, readiness_recommendation: str = None):
+    """Save a voice conversation message to the database."""
+    try:
+        import psycopg2
+        database_url = os.environ.get("DATABASE_URL")
+        if not database_url:
+            print("[Voice DB] DATABASE_URL not found, skipping save")
+            return
+        
+        turn_number = voice_call_turn_counts.get(call_id, 0)
+        if role == "user":
+            turn_number += 1
+            voice_call_turn_counts[call_id] = turn_number
+        
+        conn = psycopg2.connect(database_url)
+        cur = conn.cursor()
+        
+        cur.execute("""
+            INSERT INTO voice_messages (call_id, turn_number, role, content, readiness_score, readiness_recommendation)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (call_id, turn_number, role, content, readiness_score, readiness_recommendation))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        print(f"[Voice DB] Saved {role} message for call {call_id}, turn {turn_number}")
+        
+    except Exception as e:
+        print(f"[Voice DB] Error saving message: {e}")
+
+
+def save_voice_call_summary(call_id: str, total_turns: int, full_transcript: str):
+    """Save a summary of the voice call to the database."""
+    try:
+        import psycopg2
+        database_url = os.environ.get("DATABASE_URL")
+        if not database_url:
+            return
+        
+        conn = psycopg2.connect(database_url)
+        cur = conn.cursor()
+        
+        cur.execute("""
+            INSERT INTO voice_conversations (call_id, total_turns, full_transcript, ended_at)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (call_id) DO UPDATE SET
+                total_turns = EXCLUDED.total_turns,
+                full_transcript = EXCLUDED.full_transcript,
+                ended_at = CURRENT_TIMESTAMP
+        """, (call_id, total_turns, full_transcript))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        print(f"[Voice DB] Saved call summary for {call_id}")
+        
+    except Exception as e:
+        print(f"[Voice DB] Error saving call summary: {e}")
 
 
 @app.route("/api/vapi/chat/completions", methods=["POST"])
@@ -1374,10 +1437,18 @@ def vapi_custom_llm():
         
         if not user_message:
             response_text = "Hello! I'm SOMERA, your coaching companion. How are you feeling today?"
+            save_voice_message_to_db(call_id, "assistant", response_text)
         else:
             history = custom_llm_conversation_histories.get(call_id, [])
             
             try:
+                from readiness_scoring import calculate_readiness_score
+                readiness_result = calculate_readiness_score(user_message, history)
+                readiness_score = readiness_result.get("total_score", 0)
+                readiness_rec = readiness_result.get("recommendation", "explore")
+                
+                save_voice_message_to_db(call_id, "user", user_message, readiness_score, readiness_rec)
+                
                 response_data = generate_somera_response(
                     user_message=user_message,
                     conversation_history=history
@@ -1385,11 +1456,14 @@ def vapi_custom_llm():
                 response_text = response_data.get("response", "I'm here to listen. Could you tell me more?")
                 response_text = optimize_response_for_voice(response_text)
                 
+                save_voice_message_to_db(call_id, "assistant", response_text)
+                
                 history.append({"role": "user", "content": user_message})
                 history.append({"role": "assistant", "content": response_text})
                 custom_llm_conversation_histories[call_id] = history[-20:]
                 
                 print(f"[VAPI Custom LLM] SOMERA response: {response_text[:100]}...")
+                print(f"[VAPI Custom LLM] Readiness: {readiness_score:.0%} ({readiness_rec})")
                 
             except Exception as e:
                 print(f"[VAPI Custom LLM] SOMERA error: {e}")
