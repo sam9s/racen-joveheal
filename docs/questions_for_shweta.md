@@ -46,3 +46,12 @@ Key questions in the questionnaire:
 
 - Shweta wants premium quality products worth paying for
 - Both SOMERA Voice and SOMERA Text will be paid features with credit-based system
+
+---
+
+## Potential Client: Ana
+
+**Status:** Interested in SOMERA Voice for her own use case
+**Next Step:** Demo SOMERA Voice, then discuss her specific requirements
+**Pain points:** To be documented after discussion
+**Voice Demo Access:** Will receive temporary credentials for testing

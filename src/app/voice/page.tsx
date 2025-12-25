@@ -269,20 +269,18 @@ export default function VoiceDemo() {
               {isSpeaking && !isAssistantSpeaking && (
                 <p className="text-pink-300 text-sm">Listening to you...</p>
               )}
-              {waitingForResponse && !isAssistantSpeaking && !isSpeaking && (
+              {waitingForResponse && !isAssistantSpeaking && !isSpeaking && hasReceivedFirstResponse && (
                 <div className="flex flex-col items-center">
                   <div className="flex gap-1 mb-1">
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
-                  <p className="text-yellow-300 text-sm">
-                    {hasReceivedFirstResponse ? 'Preparing response...' : 'Initiating first response...'}
-                  </p>
+                  <p className="text-yellow-300 text-sm">Preparing response...</p>
                 </div>
               )}
-              {waitingForResponse && !hasReceivedFirstResponse && (
-                <div className="flex flex-col items-center mt-2 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+              {waitingForResponse && !isAssistantSpeaking && !isSpeaking && !hasReceivedFirstResponse && (
+                <div className="flex flex-col items-center p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
                   <div className="flex gap-1.5 mb-2">
                     <div className="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <div className="w-3 h-3 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
