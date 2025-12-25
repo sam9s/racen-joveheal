@@ -30,6 +30,7 @@ export default function VoiceDemo() {
     vapiInstance.on('call-start', () => {
       setCallStatus('connected');
       setError(null);
+      setWaitingForResponse(true);
     });
 
     vapiInstance.on('call-end', () => {
