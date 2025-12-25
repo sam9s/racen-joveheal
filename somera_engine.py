@@ -88,6 +88,11 @@ def is_closure_signal(message: str, conversation_history: List[dict] = None) -> 
     """
     Detect if the user is signaling they want to end the conversation.
     
+    BALANCED APPROACH:
+    1. First check for negated closure intent (user objecting to ending)
+    2. Then check for explicit goodbye patterns (these take priority)
+    3. Finally check for help-seeking that blocks soft closure
+    
     Returns:
         dict with:
         - is_closing: bool - True if closure signal detected
@@ -96,7 +101,41 @@ def is_closure_signal(message: str, conversation_history: List[dict] = None) -> 
     """
     msg_lower = message.lower().strip()
     
-    for pattern in STRONG_CLOSURE_PATTERNS:
+    NEGATED_CLOSURE_PHRASES = [
+        "never asked you to end", "didn't ask you to end", "didnt ask you to end",
+        "never asked to end", "didn't ask to end", "did not ask to end",
+        "never said bye", "didn't say bye", "didnt say bye",
+        "never said goodbye", "didn't say goodbye", "didnt say goodbye",
+        "don't want to end", "dont want to end", "do not want to end",
+        "don't want to leave", "dont want to leave",
+        "not ready to end", "not ready to go", "not ready to leave",
+        "why are you ending", "why are you leaving", "why ending",
+        "wait don't go", "wait dont go", "hold on don't", "hold on dont",
+        "not yet", "not done yet", "not finished yet", "we're not done"
+    ]
+    
+    for phrase in NEGATED_CLOSURE_PHRASES:
+        if phrase in msg_lower:
+            return {
+                "is_closing": False,
+                "is_strong": False,
+                "pattern_matched": None,
+                "negation_detected": phrase
+            }
+    
+    STRONG_GOODBYE_PATTERNS = [
+        "goodbye", "bye bye", "bye now", "bye for now",
+        "gotta go", "have to go", "need to go", "i should go",
+        "i need to go", "i have to leave", "i need to leave",
+        "hanging up", "hang up", "end the call", "end call",
+        "okay bye", "ok bye", "alright bye", 
+        "thanks bye", "thank you bye", "thanks goodbye",
+        "farewell", "ciao", "adios", "take care bye",
+        "that's all bye", "thats all bye", "thanks that's all",
+        "thank you that's all", "i'm leaving", "im leaving"
+    ]
+    
+    for pattern in STRONG_GOODBYE_PATTERNS:
         if pattern in msg_lower:
             return {
                 "is_closing": True,
@@ -104,11 +143,43 @@ def is_closure_signal(message: str, conversation_history: List[dict] = None) -> 
                 "pattern_matched": pattern
             }
     
+    if msg_lower.strip() == "bye" or msg_lower.strip().endswith(" bye"):
+        return {
+            "is_closing": True,
+            "is_strong": True,
+            "pattern_matched": "bye (standalone)"
+        }
+    
     prior_user_turns = len([m for m in (conversation_history or []) if m.get("role") == "user"])
     
-    for pattern in CLOSURE_PATTERNS:
-        if pattern in msg_lower:
-            if prior_user_turns >= 2:
+    SOFT_CLOSURE_PATTERNS = [
+        "that's all", "thats all", "that is all",
+        "that's everything", "thats everything",
+        "i'm good now", "im good now", "i am good now",
+        "nothing else", "no more questions", "all set",
+        "i'm done", "im done", "i am done", "we're done"
+    ]
+    
+    if prior_user_turns >= 3:
+        HELP_SEEKING_SPECIFIC = [
+            "can you help me", "could you help me", "help me with",
+            "give me some steps", "give me advice", "suggest something",
+            "tell me more about", "explain more about", "what should i do next",
+            "maybe you can suggest", "you can help me", "guide me through",
+            "i don't know what to do", "i don't have an answer"
+        ]
+        
+        for phrase in HELP_SEEKING_SPECIFIC:
+            if phrase in msg_lower:
+                return {
+                    "is_closing": False,
+                    "is_strong": False,
+                    "pattern_matched": None,
+                    "help_seeking": phrase
+                }
+        
+        for pattern in SOFT_CLOSURE_PATTERNS:
+            if pattern in msg_lower:
                 return {
                     "is_closing": True,
                     "is_strong": False,
