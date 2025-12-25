@@ -1434,15 +1434,17 @@ def log_backend_error(error_type: str, endpoint: str, error_message: str, reques
     thread.start()
 
 
-def save_voice_message_async(call_id: str, role: str, content: str, readiness_score: float = None, readiness_recommendation: str = None, latency_ms: int = None, closure_type: str = None):
+def save_voice_message_async(call_id: str, role: str, content: str, readiness_score: float = None, readiness_recommendation: str = None, latency_ms: int = None, closure_type: str = None, sources: list = None):
     """Save a voice message to the database in a background thread (non-blocking for latency)."""
     import threading
+    import json
     
-    # Calculate turn number before spawning thread
     turn_number = voice_call_turn_counts.get(call_id, 0)
     if role == "user":
         turn_number += 1
         voice_call_turn_counts[call_id] = turn_number
+    
+    sources_json = json.dumps(sources) if sources else None
     
     def _save():
         try:
@@ -1461,9 +1463,9 @@ def save_voice_message_async(call_id: str, role: str, content: str, readiness_sc
             """, (call_id,))
             
             cur.execute("""
-                INSERT INTO voice_messages (call_id, turn_number, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type, timestamp)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-            """, (call_id, turn_number, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type))
+                INSERT INTO voice_messages (call_id, turn_number, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type, sources, timestamp)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            """, (call_id, turn_number, role, content, readiness_score, readiness_recommendation, latency_ms, closure_type, sources_json))
             
             conn.commit()
             cur.close()
@@ -1634,6 +1636,7 @@ def vapi_custom_llm():
                 
                 skip_voice_optimization = False
                 closure_type_str = None
+                sources = None
                 
                 if booking:
                     response_text = get_voice_friendly_booking_response()
@@ -1646,13 +1649,37 @@ def vapi_custom_llm():
                         conversation_history=history
                     )
                     response_text = response_data.get("response", "I'm here to listen. Could you tell me more?")
+                    sources = response_data.get("sources", [])
                 
                 if not skip_voice_optimization:
                     response_text = optimize_response_for_voice(response_text)
                 
+                response_lower = response_text.lower()
+                response_ending = response_lower[-150:] if len(response_lower) > 150 else response_lower
+                
+                strong_farewell_phrases = [
+                    "talk to you soon", "goodbye", "bye for now", "until next time",
+                    "take care of yourself", "wishing you well"
+                ]
+                moderate_farewell_phrases = [
+                    "take care", "be well", "reach out again", 
+                    "come back anytime", "here whenever you're ready"
+                ]
+                
+                has_strong_farewell = any(phrase in response_ending for phrase in strong_farewell_phrases)
+                has_moderate_farewell = any(phrase in response_ending for phrase in moderate_farewell_phrases)
+                
+                is_somera_goodbye = has_strong_farewell or (has_moderate_farewell and len(response_text) < 300)
+                
+                if is_somera_goodbye:
+                    should_end_call = True
+                    closure_type_str = "somera_farewell"
+                    matched = [p for p in strong_farewell_phrases + moderate_farewell_phrases if p in response_ending]
+                    print(f"[VAPI Custom LLM] SOMERA said goodbye (matched: {matched}) - will trigger endCall")
+                
                 elapsed_ms = int((timing_module.time() - request_start) * 1000)
                 
-                save_voice_message_async(call_id, "assistant", response_text, latency_ms=elapsed_ms, closure_type=closure_type_str)
+                save_voice_message_async(call_id, "assistant", response_text, latency_ms=elapsed_ms, closure_type=closure_type_str, sources=sources)
                 
                 history.append({"role": "user", "content": user_message})
                 history.append({"role": "assistant", "content": response_text})
@@ -2044,15 +2071,23 @@ def somera_admin_call_detail(call_id):
         cur.execute("""
             SELECT 
                 role, content, readiness_score, readiness_recommendation,
-                latency_ms, closure_type, timestamp
+                latency_ms, closure_type, timestamp, sources
             FROM voice_messages
             WHERE call_id = %s
             ORDER BY timestamp ASC
         """, (call_id,))
         rows = cur.fetchall()
         
+        import json
         messages = []
         for row in rows:
+            sources_data = None
+            if row[7]:
+                try:
+                    sources_data = json.loads(row[7]) if isinstance(row[7], str) else row[7]
+                except:
+                    sources_data = None
+            
             messages.append({
                 "role": row[0],
                 "content": row[1],
@@ -2060,7 +2095,8 @@ def somera_admin_call_detail(call_id):
                 "readinessRecommendation": row[3],
                 "latencyMs": float(row[4]) if row[4] else None,
                 "closureType": row[5],
-                "timestamp": row[6].isoformat() if row[6] else None
+                "timestamp": row[6].isoformat() if row[6] else None,
+                "sources": sources_data
             })
         
         cur.close()

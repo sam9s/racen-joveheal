@@ -48,6 +48,7 @@ interface VoiceMessage {
   latencyMs: number | null;
   closureType: string | null;
   timestamp: string;
+  sources: { source: string; topic?: string; youtube_url?: string }[] | null;
 }
 
 interface CallDetail {
@@ -826,6 +827,18 @@ function TranscriptsView({
                   </div>
                 </div>
                 <p className="text-gray-200 text-sm">{msg.content}</p>
+                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-purple-500/20">
+                    <span className="text-xs text-purple-400 font-medium">Inspired by:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {msg.sources.map((src, srcIdx) => (
+                        <span key={srcIdx} className="text-xs text-purple-300/80 bg-purple-500/10 px-2 py-0.5 rounded">
+                          {src.source}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {msg.closureType && (
                   <span className="inline-block mt-2 px-2 py-0.5 rounded-full text-xs bg-gray-700 text-gray-400">
                     {msg.closureType}
