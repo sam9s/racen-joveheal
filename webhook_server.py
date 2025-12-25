@@ -1620,7 +1620,7 @@ def vapi_custom_llm():
             
             try:
                 from readiness_scoring import calculate_readiness_score
-                from somera_engine import is_closure_signal, is_booking_request, get_voice_friendly_booking_response
+                from somera_engine import is_booking_request, get_voice_friendly_booking_response
                 
                 readiness_result = calculate_readiness_score(user_message, history)
                 readiness_score = readiness_result.get("total_score", 0)
@@ -1628,42 +1628,18 @@ def vapi_custom_llm():
                 
                 save_voice_message_async(call_id, "user", user_message, readiness_score, readiness_rec)
                 
-                closure = is_closure_signal(user_message, history)
                 booking = is_booking_request(user_message)
                 
-                print(f"[VAPI Custom LLM] Closure check: is_strong={closure['is_strong']}, is_closing={closure['is_closing']}, pattern={closure.get('pattern_matched')}")
                 print(f"[VAPI Custom LLM] Booking check: {booking}")
                 
                 skip_voice_optimization = False
-                should_end_call = False
+                closure_type_str = None
                 
-                has_question = any(q in user_message.lower() for q in [
-                    "give me", "tell me", "can you", "could you", "would you",
-                    "how can i", "how do i", "what should", "what can", 
-                    "steps", "advice", "suggest", "help me", "guide me",
-                    "?", "tips", "recommendation"
-                ])
-                
-                if booking and not closure['is_strong']:
+                if booking:
                     response_text = get_voice_friendly_booking_response()
                     skip_voice_optimization = True
+                    closure_type_str = "booking_request"
                     print(f"[VAPI Custom LLM] Booking request detected - providing voice-friendly booking info")
-                elif closure["is_strong"] and not has_question:
-                    response_text = "It was wonderful talking with you today. I'm glad I could be here for you. Take care of yourself, and remember, you can always come back whenever you need support. Goodbye!"
-                    should_end_call = True
-                    print(f"[VAPI Custom LLM] Strong closure detected: {closure['pattern_matched']} - will end call")
-                elif closure["is_strong"] and has_question:
-                    response_data = generate_somera_response(
-                        user_message=user_message,
-                        conversation_history=history
-                    )
-                    base_response = response_data.get("response", "I'm here to listen. Could you tell me more?")
-                    response_text = f"{base_response} I hope that helps! It was wonderful talking with you today. Take care, and remember, you can always reach out again. Goodbye!"
-                    should_end_call = True
-                    print(f"[VAPI Custom LLM] Closure with question - answering first, then ending: {closure['pattern_matched']}")
-                elif closure["is_closing"]:
-                    response_text = "I'm so glad we could have this conversation. Before we wrap up, is there anything else on your mind you'd like to explore? If not, I wish you all the best on your journey."
-                    print(f"[VAPI Custom LLM] Soft closure detected: {closure['pattern_matched']}")
                 else:
                     response_data = generate_somera_response(
                         user_message=user_message,
@@ -1675,14 +1651,6 @@ def vapi_custom_llm():
                     response_text = optimize_response_for_voice(response_text)
                 
                 elapsed_ms = int((timing_module.time() - request_start) * 1000)
-                
-                closure_type_str = None
-                if closure["is_strong"]:
-                    closure_type_str = "strong_goodbye"
-                elif closure["is_closing"]:
-                    closure_type_str = "soft_closure"
-                elif booking:
-                    closure_type_str = "booking_request"
                 
                 save_voice_message_async(call_id, "assistant", response_text, latency_ms=elapsed_ms, closure_type=closure_type_str)
                 
