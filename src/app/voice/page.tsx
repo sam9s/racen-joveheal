@@ -65,6 +65,8 @@ export default function VoiceDemo() {
           if (message.role === 'assistant') {
             setHasReceivedFirstResponse(true);
             setWaitingForResponse(false);
+          } else if (message.role === 'user') {
+            setWaitingForResponse(true);
           }
         } else {
           setLiveTranscript(`${role}: ${message.transcript}`);
