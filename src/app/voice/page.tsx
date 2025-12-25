@@ -62,6 +62,10 @@ export default function VoiceDemo() {
         if (message.transcriptType === 'final') {
           setTranscript(prev => [...prev, `${role}: ${message.transcript}`]);
           setLiveTranscript('');
+          if (message.role === 'assistant') {
+            setHasReceivedFirstResponse(true);
+            setWaitingForResponse(false);
+          }
         } else {
           setLiveTranscript(`${role}: ${message.transcript}`);
         }
@@ -72,10 +76,6 @@ export default function VoiceDemo() {
         if (speechMsg.role === 'assistant') {
           const isStarted = speechMsg.status === 'started';
           setIsAssistantSpeaking(isStarted);
-          if (isStarted) {
-            setWaitingForResponse(false);
-            setHasReceivedFirstResponse(true);
-          }
         }
         if (speechMsg.role === 'user') {
           if (speechMsg.status === 'ended') {
