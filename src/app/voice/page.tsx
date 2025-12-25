@@ -279,7 +279,7 @@ export default function VoiceDemo() {
                   <p className="text-yellow-300 text-sm">Preparing response...</p>
                 </div>
               )}
-              {waitingForResponse && !isAssistantSpeaking && !isSpeaking && !hasReceivedFirstResponse && (
+              {!hasReceivedFirstResponse && !isAssistantSpeaking && (
                 <div className="flex flex-col items-center p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
                   <div className="flex gap-1.5 mb-2">
                     <div className="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
