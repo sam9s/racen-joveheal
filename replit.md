@@ -10,6 +10,31 @@ I want the agent to focus on high-level features and architectural decisions, av
 
 ## System Architecture
 
+### Assistant Architecture (IMPORTANT)
+
+The system has three distinct assistants sharing common infrastructure:
+
+| Assistant | Purpose | Engine | Knowledge Base |
+|-----------|---------|--------|----------------|
+| **Jovee/RACEN** | Business assistant - website info, programs, pricing | `chatbot_engine.py` | ChromaDB (website/programs) |
+| **SOMERA Text** | Coaching assistant - empathy, 4-step framework | `somera_engine.py` | ChromaDB (coaching content) |
+| **SOMERA Voice** | Same as SOMERA Text, voice interface via VAPI | `somera_engine.py` | ChromaDB (coaching content) |
+
+**SOMERA Voice and SOMERA Text are the same coaching assistant** - they share:
+- The same `generate_somera_response()` function
+- The same RAG/knowledge base queries
+- The same guardrails and safety filters
+- The same readiness scoring system
+
+**Shared Privacy Guardrails (All Three Assistants):**
+All assistants use `filter_response_for_safety()` from `safety_guardrails.py` which includes:
+- PII detection/blocking (email, phone, address requests)
+- Medical/mental health safety redirects
+- Crisis keyword detection
+- Judgmental language correction
+
+Lead capture happens only through official Kajabi channels (Discovery Call link, Contact page).
+
 ### UI/UX Decisions
 RACEN presents a warm, empathetic, and guide-like personality, using plain language. Responses are formatted for readability, and emotional queries are handled with empathy. The frontend is built with Next.js 14, TypeScript, and Tailwind CSS, featuring a branded R.A.C.E.N interface. Streaming responses are implemented via Server-Sent Events (SSE) for a real-time user experience. Clickable links are automatically generated for mentioned JoveHeal programs. SOMERA has a distinct purple/pink themed UI.
 
