@@ -407,6 +407,35 @@
       text-decoration: none;
     }
 
+    #jovee-new-chat-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto;
+      transition: background 0.2s ease;
+    }
+
+    #jovee-new-chat-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    #jovee-new-chat-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: rgba(255, 255, 255, 0.6);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    #jovee-new-chat-btn:hover svg {
+      stroke: rgba(255, 255, 255, 0.9);
+    }
+
     @media (max-width: 480px) {
       #jovee-chat-window {
         width: calc(100vw - 20px);
@@ -471,6 +500,11 @@
             <h3>Jovee</h3>
             <p>Your JoveHeal Guide</p>
           </div>
+          <button id="jovee-new-chat-btn" title="Start new chat">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
         </div>
         <div id="jovee-chat-messages">
           <div class="jovee-welcome">
@@ -502,6 +536,8 @@
 
   const STORAGE_KEY_SESSION = 'jovee_session_id';
   const STORAGE_KEY_MESSAGES = 'jovee_messages';
+  const STORAGE_KEY_CHAT_OPEN = 'jovee_chat_open';
+  const STORAGE_KEY_NAV_TIME = 'jovee_nav_timestamp';
 
   function generateSessionId() {
     return 'widget_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -571,6 +607,52 @@
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
+  function startNewChat() {
+    messages = [];
+    isLoading = false;
+    
+    try {
+      localStorage.removeItem(STORAGE_KEY_MESSAGES);
+      localStorage.removeItem(STORAGE_KEY_SESSION);
+      localStorage.removeItem(STORAGE_KEY_CHAT_OPEN);
+      localStorage.removeItem(STORAGE_KEY_NAV_TIME);
+    } catch (e) {}
+    
+    sessionId = generateSessionId();
+    try {
+      localStorage.setItem(STORAGE_KEY_SESSION, sessionId);
+    } catch (e) {}
+    
+    const messagesContainer = document.getElementById('jovee-chat-messages');
+    messagesContainer.innerHTML = `
+      <div class="jovee-welcome">
+        <h4>Hi, I'm Jovee</h4>
+        <p>Your real-time guide for healing and coaching at JoveHeal. How can I help you today?</p>
+      </div>
+    `;
+    
+    hideTyping();
+    const input = document.getElementById('jovee-chat-input');
+    input.value = '';
+    updateSendButton();
+    input.focus();
+  }
+
+  function shouldAutoOpenChat() {
+    try {
+      const wasOpen = localStorage.getItem(STORAGE_KEY_CHAT_OPEN);
+      const navTime = localStorage.getItem(STORAGE_KEY_NAV_TIME);
+      
+      if (wasOpen === 'true' && navTime) {
+        const elapsed = Date.now() - parseInt(navTime, 10);
+        localStorage.removeItem(STORAGE_KEY_CHAT_OPEN);
+        localStorage.removeItem(STORAGE_KEY_NAV_TIME);
+        return elapsed < 10000;
+      }
+    } catch (e) {}
+    return false;
+  }
+
   function toggleChat() {
     const bubble = document.getElementById('jovee-chat-bubble');
     const chatWindow = document.getElementById('jovee-chat-window');
@@ -631,6 +713,10 @@
       console.warn('Navigation blocked: URL not in allowlist', url);
       return;
     }
+    try {
+      localStorage.setItem(STORAGE_KEY_CHAT_OPEN, 'true');
+      localStorage.setItem(STORAGE_KEY_NAV_TIME, Date.now().toString());
+    } catch (e) {}
     window.location.href = url;
   }
 
@@ -947,6 +1033,7 @@
     }
 
     document.getElementById('jovee-chat-bubble').addEventListener('click', toggleChat);
+    document.getElementById('jovee-new-chat-btn').addEventListener('click', startNewChat);
     
     const input = document.getElementById('jovee-chat-input');
     input.addEventListener('input', updateSendButton);
@@ -960,6 +1047,19 @@
     document.getElementById('jovee-send-btn').addEventListener('click', sendMessage);
     
     initResize();
+    
+    if (shouldAutoOpenChat()) {
+      const bubble = document.getElementById('jovee-chat-bubble');
+      const chatWindow = document.getElementById('jovee-chat-window');
+      chatWindow.classList.add('open');
+      bubble.classList.add('open');
+      lazyLoadLogo();
+      
+      setTimeout(function() {
+        const messagesContainer = document.getElementById('jovee-chat-messages');
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }, 100);
+    }
   }
 
   function deferInit() {
