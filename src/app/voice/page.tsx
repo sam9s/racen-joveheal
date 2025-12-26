@@ -91,16 +91,22 @@ export default function VoiceDemo() {
 
     vapiInstance.on('error', (err: Error) => {
       console.error('VAPI Error:', err);
-      const errorMsg = err.message || '';
+      const errorMsg = err?.message || '';
+      
+      // Empty error messages or common termination phrases are normal call endings
       const isNormalTermination = 
+        !errorMsg ||
         errorMsg.toLowerCase().includes('ended') ||
         errorMsg.toLowerCase().includes('closed') ||
         errorMsg.toLowerCase().includes('disconnected') ||
         errorMsg.toLowerCase().includes('timeout') ||
-        errorMsg.toLowerCase().includes('max duration');
+        errorMsg.toLowerCase().includes('max duration') ||
+        errorMsg.toLowerCase().includes('user') ||
+        errorMsg.toLowerCase().includes('hangup') ||
+        errorMsg.toLowerCase().includes('bye');
       
       if (!isNormalTermination) {
-        setError(errorMsg || 'An error occurred');
+        setError(errorMsg);
       }
       setCallStatus('idle');
     });
