@@ -1,6 +1,14 @@
 #!/bin/bash
-# Complete Database Backup Script for JoveHeal
-# Backs up: PostgreSQL + ChromaDB (vector_db) + Knowledge Base metadata
+# ==============================================
+# Complete Database & Data Backup Script for JoveHeal
+# ==============================================
+# Backs up:
+#   - PostgreSQL database (users, conversations, feedback, analytics)
+#   - ChromaDB vector database (RAG embeddings)
+#   - Knowledge base documents
+#   - Transcripts (coaching session transcripts)
+#   - Docs (documentation)
+# ==============================================
 
 echo "=========================================="
 echo "  JoveHeal Complete Backup"
@@ -25,7 +33,7 @@ echo "Timestamp: ${TIMESTAMP}"
 echo ""
 
 # 1. PostgreSQL Database
-echo "[1/3] Backing up PostgreSQL database..."
+echo "[1/5] Backing up PostgreSQL database..."
 pg_dump "$DATABASE_URL" --no-owner --no-acl --clean --if-exists > "$BACKUP_DIR/postgresql.sql"
 if [ $? -eq 0 ]; then
     PG_SIZE=$(du -h "$BACKUP_DIR/postgresql.sql" | cut -f1)
@@ -34,24 +42,44 @@ else
     echo "      ERROR: PostgreSQL backup failed!"
 fi
 
-# 2. ChromaDB Vector Database (contains all ingested content)
-echo "[2/3] Backing up ChromaDB vector database..."
-if [ -d "vector_db" ]; then
-    cp -r vector_db "$BACKUP_DIR/"
-    CHROMA_SIZE=$(du -sh "$BACKUP_DIR/vector_db" | cut -f1)
+# 2. ChromaDB Vector Database (contains all RAG embeddings)
+echo "[2/5] Backing up ChromaDB vector database..."
+if [ -d "chroma_db" ]; then
+    cp -r chroma_db "$BACKUP_DIR/"
+    CHROMA_SIZE=$(du -sh "$BACKUP_DIR/chroma_db" | cut -f1)
     echo "      ChromaDB: ${CHROMA_SIZE}"
 else
-    echo "      WARNING: vector_db folder not found"
+    echo "      WARNING: chroma_db folder not found"
 fi
 
-# 3. Knowledge Base Metadata
-echo "[3/3] Backing up knowledge base metadata..."
+# 3. Knowledge Base Documents
+echo "[3/5] Backing up knowledge base documents..."
 if [ -d "knowledge_base" ]; then
     cp -r knowledge_base "$BACKUP_DIR/"
     KB_SIZE=$(du -sh "$BACKUP_DIR/knowledge_base" | cut -f1)
     echo "      Knowledge Base: ${KB_SIZE}"
 else
     echo "      WARNING: knowledge_base folder not found"
+fi
+
+# 4. Transcripts (coaching session transcripts)
+echo "[4/5] Backing up transcripts..."
+if [ -d "transcripts" ]; then
+    cp -r transcripts "$BACKUP_DIR/"
+    TR_SIZE=$(du -sh "$BACKUP_DIR/transcripts" | cut -f1)
+    echo "      Transcripts: ${TR_SIZE}"
+else
+    echo "      WARNING: transcripts folder not found"
+fi
+
+# 5. Documentation
+echo "[5/5] Backing up documentation..."
+if [ -d "docs" ]; then
+    cp -r docs "$BACKUP_DIR/"
+    DOCS_SIZE=$(du -sh "$BACKUP_DIR/docs" | cut -f1)
+    echo "      Docs: ${DOCS_SIZE}"
+else
+    echo "      WARNING: docs folder not found"
 fi
 
 # Compress everything into one file
@@ -72,9 +100,11 @@ echo "  File: ${FINAL_FILE}"
 echo "  Total Size: ${FINAL_SIZE}"
 echo ""
 echo "  Contents:"
-echo "  - PostgreSQL (users, conversations, feedback)"
-echo "  - ChromaDB (Jovee pages + SOMERA transcripts)"
-echo "  - Knowledge base metadata"
+echo "  - PostgreSQL (users, conversations, feedback, analytics)"
+echo "  - ChromaDB (Jovee + SOMERA RAG embeddings)"
+echo "  - Knowledge base (website content, program docs)"
+echo "  - Transcripts (coaching session transcripts)"
+echo "  - Documentation (deployment guides, recovery plans)"
 echo ""
 echo "=========================================="
 echo "  HOW TO DOWNLOAD:"
@@ -90,3 +120,10 @@ echo "=========================================="
 echo ""
 echo "Recent backups:"
 ls -lh backups/*.tar.gz 2>/dev/null | tail -5
+
+# Cleanup old backups (keep last 5)
+echo ""
+echo "Cleaning up old backups (keeping last 5)..."
+cd backups && ls -t *.tar.gz 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null
+cd ..
+echo "Done."
