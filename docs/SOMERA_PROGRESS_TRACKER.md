@@ -21,6 +21,7 @@
 | "Preparing response..." UI | Yellow bouncing dots during SOMERA's thinking time | Dec 26, 2024 |
 | Graceful Error Handling | No error message shown when calls end naturally | Dec 26, 2024 |
 | Password Protection | Demo page protected with HTTP Basic Auth | Dec 25, 2024 |
+| **Privacy Guardrails** | SOMERA (Voice & Text) never collects personal info (email, phone, etc.) | Dec 26, 2024 |
 
 ---
 
@@ -28,20 +29,30 @@
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| Knowledge Base Merge | Give SOMERA access to Jovee's program/course info | Planning |
+| Informed Coach Design | Design doc for SOMERA knowing programs with coaching warmth | ✅ Design complete, awaiting dependencies |
 
 ---
 
 ## 📋 Planned Features
 
-### High Priority (Ready to Build)
+### High Priority (Ready to Build When Dependencies Met)
 
 | Feature | Description | Dependencies |
 |---------|-------------|--------------|
-| **Knowledge Base Merge** | SOMERA shares Jovee's program knowledge | None - can build now |
-| **Link Display in Transcript** | Show clickable links when SOMERA mentions programs | Needs knowledge base merge first |
-| **Email Integration** | Auto-send booking details/links to user's email | Shweta's email service info |
+| **Informed Coach** | SOMERA shares program knowledge with empathetic delivery | Email integration + Shweta approval |
+| **Email Integration** | Auto-send program details/booking links to users | Shweta's email service info (Kajabi) |
 | **Credit-Based Payment** | Usage limits for paid voice feature | Payment integration (Stripe) |
+
+### Informed Coach Feature (Designed - Awaiting Implementation)
+
+See `docs/SOMERA_INFORMED_COACH_DESIGN.md` for full design.
+
+**Summary:**
+- SOMERA becomes an "informed coach" who knows JoveHeal programs
+- Delivers program info with coaching warmth, not sales pitch
+- Pattern: Empathy → Brief context → Coaching follow-up
+- Directs to Discovery Call/Contact page (never collects PII directly)
+- Awaiting: Email integration + Shweta's approval
 
 ### Credit System Design (Draft)
 
@@ -104,15 +115,24 @@
 ### Knowledge Base Architecture (Current)
 - **Jovee (RACEN)**: Uses ChromaDB `jovee_collection` - JoveHeal website content, programs, courses
 - **SOMERA Voice**: Uses VAPI webhook → `somera_engine.py` with separate coaching knowledge
-- **Gap**: SOMERA doesn't query Jovee's program database
+- **Gap**: SOMERA doesn't query Jovee's program database (by design, pending Informed Coach feature)
+
+### Safety Guardrails
+- Crisis keyword detection with professional referrals
+- Mental health/medical content redirects
+- Non-judgmental language enforcement
+- Live session referral boundaries
+- **Privacy guardrails** - No PII collection (implemented Dec 26, 2024)
 
 ---
 
 ## 📝 Notes & Decisions
 
-- **Dec 26, 2024**: Fixed "Preparing response..." UI to show during SOMERA's thinking time. Root cause was VAPI firing `speech-update` events before actual audio plays.
+- **Dec 26, 2024**: Privacy guardrails added to both SOMERA Voice and SOMERA Text. Neither will ever ask for personal information.
+- **Dec 26, 2024**: "Informed Coach" feature designed but NOT implemented. Waiting for email integration to avoid broken UX.
+- **Dec 26, 2024**: Fixed "Preparing response..." UI to show during SOMERA's thinking time.
 - **Dec 26, 2024**: Improved error handling - normal call terminations no longer show error messages.
-- **Dec 24, 2024**: Chose pattern-based closure detection over LLM-based for speed. Will add smart detection when we have more transcript data.
+- **Dec 24, 2024**: Chose pattern-based closure detection over LLM-based for speed.
 - **Credit Pricing**: Need to calculate exact API costs before finalizing. 1 cent/message is placeholder estimate.
 - **Email Integration**: Waiting for Shweta (US timezone) to provide email service details.
 
@@ -124,12 +144,13 @@ See `docs/questions_for_shweta.md` for full list:
 1. Email API details (service provider, credentials)
 2. 4-parameter methodology questionnaire for readiness scoring
 3. Credit pricing validation (1 cent/message proposed)
+4. **NEW:** Approval for "Informed Coach" concept (SOMERA knowing programs)
 
 ---
 
 ## 🎯 Next Steps (Priority Order)
 
-1. **Knowledge Base Merge** - Give SOMERA access to Jovee's program info
-2. **Link Display** - Show program links in voice transcript
-3. **Email Integration** - When Shweta provides API details
-4. **Credit System** - After pricing validation
+1. ⏳ Get Shweta's approval on "Informed Coach" concept
+2. ⏳ Get email API credentials from Shweta
+3. ⏳ Implement Informed Coach + Email integration together
+4. ⏳ Credit system after pricing validation

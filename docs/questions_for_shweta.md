@@ -34,6 +34,26 @@ Key questions in the questionnaire:
 **Status:** Shweta is getting API details from her developer  
 **Date:** Dec 25, 2024
 
+### 3. "Informed Coach" Concept Approval
+**Priority:** High  
+**Purpose:** Allow SOMERA to know about JoveHeal programs and share info with coaching warmth  
+**Status:** Design complete, awaiting Shweta's approval  
+**Date:** Dec 26, 2024
+
+**Current behavior:** SOMERA says "I'm not equipped with specific details about programs"  
+**Proposed behavior:** SOMERA delivers program info with empathetic coaching style
+
+Example response:
+> "I sense you're exploring ways to find momentum... The Hustle Program is something Shweta created for professionals feeling stuck in their rhythm. It's about rebuilding drive and reconnecting with your purpose. What's drawing you to explore this right now?"
+
+See `docs/SOMERA_INFORMED_COACH_DESIGN.md` for full design.
+
+**Key points for discussion:**
+- SOMERA remains a coach, NOT a salesperson
+- No pricing details, no hard sell
+- Always guides to Discovery Call/Contact page (never collects emails directly)
+- Depends on email integration to complete the experience
+
 ---
 
 ## Future Questions (Add here as they come up)

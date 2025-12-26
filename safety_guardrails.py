@@ -379,6 +379,8 @@ PRICING AND 1:1 SESSION HANDLING:
 
 For contact inquiries, direct users to: https://www.joveheal.com/contact
 
+PRIVACY: NEVER ask for personal information (email, phone, address). Direct users to our contact page or Discovery Call link instead.
+
 Only answer based on the knowledge base provided. Keep responses concise and helpful."""
 
 
@@ -465,6 +467,29 @@ CRITICAL: When users ask about past discussions ("what did we talk about?", "wha
 - If the history is empty or only contains greetings, say: "I don't have details about our previous conversations right now, but I'm happy to help with whatever's on your mind today!"
 - NEVER fabricate or guess what you might have discussed before
 - The examples in this prompt are NOT real conversations with the user — don't reference them as if they were
+
+=== PRIVACY GUARDRAILS (CRITICAL) ===
+
+NEVER ask for or collect personal information during any conversation. This is a strict safety boundary.
+
+FORBIDDEN to request:
+- Email addresses
+- Phone numbers
+- Physical addresses
+- Full names
+- Social media handles
+- Any personally identifiable information (PII)
+
+If a user wants to receive information via email or wants to contact us:
+- Direct them to our contact page: https://www.joveheal.com/contact
+- Or the Discovery Call booking link: https://bit.ly/apply-for-discovery
+
+WRONG: "What's your email so I can send you the details?"
+WRONG: "Can you share your phone number so we can follow up?"
+
+CORRECT: "You can reach us at https://www.joveheal.com/contact — our team would be happy to follow up with you there!"
+
+This protects user privacy and ensures all lead capture happens through official JoveHeal channels.
 
 === REMEMBER ===
 
@@ -916,6 +941,30 @@ WHAT SOMERA CAN DO:
 - Normalize their experiences and reduce shame
 - Guide them toward the decision to seek deeper work
 
+=== PRIVACY GUARDRAILS (CRITICAL) ===
+
+NEVER ask for or collect personal information during any conversation. This is a strict safety boundary.
+
+FORBIDDEN to request:
+- Email addresses
+- Phone numbers
+- Physical addresses
+- Full names
+- Social media handles
+- Any personally identifiable information (PII)
+
+If a user wants to receive information via email or wants to contact Shweta:
+- Direct them to the Discovery Call booking link: https://bit.ly/apply-for-discovery
+- Or the JoveHeal contact page: https://joveheal.com/contact/
+
+WRONG: "What's your email so I can send you the details?"
+WRONG: "Can you share your phone number so we can follow up?"
+WRONG: "What's your name and email?"
+
+CORRECT: "If you'd like to connect further, you can book a complimentary Discovery Call here: https://bit.ly/apply-for-discovery — that's the best way to get personalized support from Shweta directly."
+
+This protects user privacy and ensures all lead capture happens through official JoveHeal channels (Kajabi).
+
 === YOUR IDENTITY ===
 
 You ARE part of the JoveHeal team. Speak as "we", "us", "our team" when referring to JoveHeal.
@@ -951,6 +1000,33 @@ OUTPUT_FORBIDDEN_PATTERNS = [
     r"if you.*(self.?harm|suicid|hurt yourself|end your life)",
     r"(symptoms? of|signs? of) .*(mental|psychological|psychiatric)",
 ]
+
+PII_REQUEST_PATTERNS = [
+    r"(what'?s|what is|can you share|please share|share|provide|give me|send me|tell me).{0,20}(your|ur).{0,10}(email|e-mail|phone|cell|mobile|number|address|contact)",
+    r"(your|ur).{0,10}(email|e-mail|phone|cell|mobile|number|address).{0,10}(so (i|we) can|to)",
+    r"(can i|may i|could i).{0,15}(have|get).{0,10}(your|ur).{0,10}(email|phone|number|contact|address)",
+    r"(send|email|forward).{0,15}(you|to you).{0,15}(need|require|want).{0,15}(your|ur).{0,10}(email|address)",
+    r"(what|where).{0,10}(can|should).{0,10}(i|we).{0,10}(send|email|contact|reach).{0,5}you",
+    r"(leave|share|provide).{0,10}(your|ur).{0,10}(email|phone|contact|number|details)",
+    r"(how can i|how do i).{0,10}(reach|contact|email|call).{0,5}you",
+    r"(would you like).{0,10}(to share|to give|to provide).{0,10}(your|ur).{0,10}(email|phone|contact)",
+]
+
+PII_REDIRECT_RESPONSE = """If you'd like to connect further or receive more information, you can:
+
+- Book a complimentary Discovery Call: https://bit.ly/apply-for-discovery
+- Reach out through our contact page: https://joveheal.com/contact
+
+Is there anything else I can help you explore today?"""
+
+
+def _check_pii_request_patterns(response: str) -> bool:
+    """Check if response contains patterns requesting personal information."""
+    response_lower = response.lower()
+    for pattern in PII_REQUEST_PATTERNS:
+        if re.search(pattern, response_lower):
+            return True
+    return False
 
 SAFE_REDIRECT_PATTERNS = [
     r"(recommend|suggest|encourage|reach out to|consult|speak with|talk to|see|contact).{0,30}(professional|therapist|counselor|doctor|physician|psychiatrist|psychologist|licensed|qualified|mental health)",
@@ -1203,14 +1279,26 @@ def filter_response_for_safety(response: str, user_message: str = "", session_id
     Returns (filtered_response, was_filtered)
     
     Logic:
-    1. Split response into sentences
-    2. For each sentence with a protected keyword:
+    1. Check for PII requests (email, phone, etc.) - BLOCK and redirect
+    2. Split response into sentences
+    3. For each sentence with a protected keyword:
        - If it matches a SAFE_REDIRECT_PATTERN → ALLOW (professional referral)
        - If it matches an UNSAFE_ADVICE_PATTERN → BLOCK (giving advice)
-    3. Check and fix judgmental time patterns
-    4. Check global OUTPUT_FORBIDDEN_PATTERNS as final catch
+    4. Check and fix judgmental time patterns
+    5. Check global OUTPUT_FORBIDDEN_PATTERNS as final catch
     """
     import re
+    
+    if _check_pii_request_patterns(response):
+        log_guardrail_activation(
+            guardrail_type="pii_request_blocked",
+            trigger_pattern="pii_request_pattern",
+            user_message=user_message,
+            action_taken="response_replaced_with_redirect",
+            response_preview=response[:100],
+            session_id=session_id
+        )
+        return PII_REDIRECT_RESPONSE, True
     
     sentences = _split_into_sentences(response)
     
