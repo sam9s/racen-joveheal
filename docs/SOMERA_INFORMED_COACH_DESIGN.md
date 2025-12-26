@@ -233,3 +233,76 @@ def generate_somera_response(
 5. ⏳ Get email API credentials from Shweta
 6. ⏳ Implement modality parameter in pipeline
 7. ⏳ Build feature when dependencies are met
+
+---
+
+## Future Enhancements (Documented, Not Yet Implemented)
+
+### Enhancement 1: Visual Link Display in Voice Transcript
+
+**Status:** Documented, awaiting email integration
+
+**Concept:** When SOMERA Voice mentions a link (Discovery Call, program page), display the clickable link in the transcript UI without speaking it.
+
+**User Experience:**
+```
+SOMERA: "The best way to connect is through a Discovery Call with Shweta. 
+        Would you like me to email you the link?"
+
+        📎 Book Discovery Call →
+```
+
+**Technical Approach (Option B - Backend Metadata):**
+- Backend returns structured response: `{spoken_text: "...", display_links: [{text, url}]}`
+- Frontend receives via websocket/polling alongside VAPI transcript
+- Frontend renders spoken text + clickable links below
+
+**Dependencies:**
+- Email integration (so "Would you like me to email..." actually works)
+- Additional websocket channel for metadata delivery
+
+---
+
+### Enhancement 2: ElevenLabs Voice Speed Control
+
+**Status:** Awaiting documentation from user
+
+**Concept:** Control SOMERA Voice speed and other parameters via ElevenLabs API.
+
+**Implementation:** Configure in VAPI assistant settings or direct API calls.
+
+---
+
+### Enhancement 3: Jovee Auto-Navigation (Future Feature)
+
+**Status:** Concept documented, implementation deferred
+
+**Concept:** Jovee (the business assistant widget on joveheal.com) can offer to navigate users directly to program pages.
+
+**User Experience:**
+```
+User: "Tell me about the Hustle program"
+Jovee: "The Hustle Program helps professionals rebuild their drive. 
+       Would you like me to take you to that page?"
+User: "Yes"
+*Browser navigates to joveheal.com/hustle*
+```
+
+**Technical Approach:**
+1. Intent detection: Detect "take me there" / "yes" after navigation offer
+2. URL mapping: Map program names to website URLs
+3. Widget communication: Use `postMessage` API to send navigation command from widget to parent page
+4. Parent handler: Kajabi site receives message and navigates
+
+**Code Pattern:**
+```javascript
+// Widget sends navigation command
+window.parent.postMessage({type: 'navigate', url: 'https://joveheal.com/hustle'}, '*');
+
+// Parent page handler
+window.addEventListener('message', (e) => {
+  if (e.data.type === 'navigate') window.location.href = e.data.url;
+});
+```
+
+**This applies to Jovee only** - not SOMERA Text or SOMERA Voice, since those are coaching sessions where navigation would interrupt the flow.
