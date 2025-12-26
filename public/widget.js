@@ -545,6 +545,8 @@
     if (welcome) welcome.remove();
 
     for (const msg of storedMessages) {
+      const { cleanContent } = extractNavigationUrl(msg.content);
+      
       const wrapperEl = document.createElement('div');
       wrapperEl.className = `jovee-message-wrapper ${msg.role}`;
       
@@ -560,7 +562,7 @@
       
       const msgEl = document.createElement('div');
       msgEl.className = `jovee-message ${msg.role}`;
-      msgEl.appendChild(createSafeContent(msg.content));
+      msgEl.appendChild(createSafeContent(cleanContent));
       wrapperEl.appendChild(msgEl);
       
       messagesContainer.appendChild(wrapperEl);
@@ -589,6 +591,47 @@
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  var ALLOWED_NAVIGATION_DOMAINS = [
+    'joveheal.com',
+    'www.joveheal.com',
+    'bit.ly'
+  ];
+
+  function isAllowedUrl(url) {
+    try {
+      var parsed = new URL(url);
+      return ALLOWED_NAVIGATION_DOMAINS.some(function(domain) {
+        return parsed.hostname === domain || parsed.hostname.endsWith('.' + domain);
+      });
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function extractNavigationUrl(content) {
+    var navRegex = /\[NAVIGATE:(https?:\/\/[^\]]+)\]\s*/i;
+    var match = content.match(navRegex);
+    var cleanContent = content.replace(navRegex, '').trim();
+    
+    if (match) {
+      var url = match[1];
+      if (isAllowedUrl(url)) {
+        return { url: url, cleanContent: cleanContent };
+      }
+      console.warn('Navigation blocked: URL not in allowlist', url);
+    }
+    
+    return { url: null, cleanContent: cleanContent };
+  }
+
+  function performNavigation(url) {
+    if (!isAllowedUrl(url)) {
+      console.warn('Navigation blocked: URL not in allowlist', url);
+      return;
+    }
+    window.location.href = url;
   }
 
   function createSafeContent(text) {
@@ -626,10 +669,13 @@
     return container;
   }
 
-  function addMessage(role, content) {
+  function addMessage(role, content, skipNavigation = false) {
     const messagesContainer = document.getElementById('jovee-chat-messages');
     const welcome = messagesContainer.querySelector('.jovee-welcome');
     if (welcome) welcome.remove();
+
+    const { url: navigationUrl, cleanContent } = extractNavigationUrl(content);
+    const displayContent = cleanContent;
 
     const wrapperEl = document.createElement('div');
     wrapperEl.className = `jovee-message-wrapper ${role}`;
@@ -646,8 +692,19 @@
     
     const msgEl = document.createElement('div');
     msgEl.className = `jovee-message ${role}`;
-    msgEl.appendChild(createSafeContent(content));
+    msgEl.appendChild(createSafeContent(displayContent));
     wrapperEl.appendChild(msgEl);
+    
+    if (role === 'assistant' && navigationUrl && !skipNavigation) {
+      const navIndicator = document.createElement('div');
+      navIndicator.className = 'jovee-nav-indicator';
+      navIndicator.innerHTML = '<span style="color: #03a9f4; font-size: 12px; display: flex; align-items: center; gap: 4px; margin-top: 8px;"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>Navigating...</span>';
+      msgEl.appendChild(navIndicator);
+      
+      setTimeout(function() {
+        performNavigation(navigationUrl);
+      }, 1500);
+    }
     
     messagesContainer.appendChild(wrapperEl);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -656,8 +713,9 @@
   }
 
   function updateMessageContent(msgEl, content) {
+    const { cleanContent } = extractNavigationUrl(content);
     msgEl.innerHTML = '';
-    msgEl.appendChild(createSafeContent(content));
+    msgEl.appendChild(createSafeContent(cleanContent));
   }
 
   function showTyping() {
@@ -824,7 +882,7 @@
                 streamedContent += data.content;
                 
                 if (!assistantMsgEl) {
-                  assistantMsgEl = addMessage('assistant', streamedContent);
+                  assistantMsgEl = addMessage('assistant', streamedContent, true);
                 } else {
                   updateMessageContent(assistantMsgEl, streamedContent);
                 }
@@ -833,8 +891,22 @@
                 container.scrollTop = container.scrollHeight;
               } else if (data.type === 'done') {
                 const finalContent = data.full_response || streamedContent;
+                const { url: navigationUrl, cleanContent } = extractNavigationUrl(finalContent);
+                
                 if (assistantMsgEl) {
-                  updateMessageContent(assistantMsgEl, finalContent);
+                  assistantMsgEl.innerHTML = '';
+                  assistantMsgEl.appendChild(createSafeContent(cleanContent));
+                  
+                  if (navigationUrl) {
+                    const navIndicator = document.createElement('div');
+                    navIndicator.className = 'jovee-nav-indicator';
+                    navIndicator.innerHTML = '<span style="color: #03a9f4; font-size: 12px; display: flex; align-items: center; gap: 4px; margin-top: 8px;"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>Navigating...</span>';
+                    assistantMsgEl.appendChild(navIndicator);
+                    
+                    setTimeout(function() {
+                      performNavigation(navigationUrl);
+                    }, 1500);
+                  }
                 }
                 messages.push({ role: 'assistant', content: finalContent });
                 saveMessagesToStorage();

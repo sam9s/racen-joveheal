@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 
 interface Message {
@@ -15,6 +15,58 @@ interface Message {
 interface ChatMessageProps {
   message: Message;
   onFeedback: (messageId: string, feedback: 'up' | 'down', comment?: string) => void;
+}
+
+const ALLOWED_NAVIGATION_DOMAINS = [
+  'joveheal.com',
+  'www.joveheal.com',
+  'bit.ly',
+];
+
+function isAllowedUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return ALLOWED_NAVIGATION_DOMAINS.some(domain => 
+      parsed.hostname === domain || parsed.hostname.endsWith('.' + domain)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function extractNavigationUrl(content: string): { url: string | null; cleanContent: string } {
+  const navRegex = /\[NAVIGATE:(https?:\/\/[^\]]+)\]\s*/i;
+  const match = content.match(navRegex);
+  const cleanContent = content.replace(navRegex, '').trim();
+  
+  if (match) {
+    const url = match[1];
+    if (isAllowedUrl(url)) {
+      return { url, cleanContent };
+    }
+    console.warn('Navigation blocked: URL not in allowlist', url);
+  }
+  
+  return { url: null, cleanContent };
+}
+
+function performNavigation(url: string): void {
+  if (!isAllowedUrl(url)) {
+    console.warn('Navigation blocked: URL not in allowlist', url);
+    return;
+  }
+  
+  const isEmbedded = typeof window !== 'undefined' && window.parent !== window;
+  
+  if (isEmbedded) {
+    try {
+      window.parent.location.href = url;
+    } catch {
+      window.open(url, '_blank');
+    }
+  } else {
+    window.open(url, '_blank');
+  }
 }
 
 function renderLinks(text: string): React.ReactNode[] {
@@ -71,8 +123,22 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
   const [showFeedbackInput, setShowFeedbackInput] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [pendingFeedback, setPendingFeedback] = useState<'up' | 'down' | null>(null);
+  const navigationTriggered = useRef(false);
 
   const isUser = message.role === 'user';
+  
+  const { url: navigationUrl, cleanContent } = extractNavigationUrl(message.content);
+  
+  useEffect(() => {
+    if (navigationUrl && !navigationTriggered.current && message.role === 'assistant') {
+      navigationTriggered.current = true;
+      const timer = setTimeout(() => {
+        performNavigation(navigationUrl);
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [navigationUrl, message.role]);
 
   const handleFeedbackClick = (feedback: 'up' | 'down') => {
     if (message.feedbackGiven) return;
@@ -118,8 +184,17 @@ export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
         }`}
       >
         <div className="whitespace-pre-wrap text-xs md:text-sm leading-relaxed">
-          {renderLinks(message.content)}
+          {renderLinks(cleanContent)}
         </div>
+        
+        {navigationUrl && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-primary-400">
+            <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Navigating...</span>
+          </div>
+        )}
         
         {!isUser && (
           <div className="mt-2 pt-2 border-t border-primary-500/10">
