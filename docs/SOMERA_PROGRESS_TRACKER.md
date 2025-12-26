@@ -1,6 +1,6 @@
 # SOMERA Voice - Progress Tracker
 
-*Last Updated: December 24, 2025*
+*Last Updated: December 26, 2025*
 
 ---
 
@@ -17,6 +17,10 @@
 | Backup Scripts | Code backup to GitHub, database backup working | Dec 2024 |
 | SOMERA Admin Dashboard | Voice analytics dashboard with transcripts, latency metrics, readiness journey | Dec 24, 2024 |
 | Latency Tracking | Capture & display response time per message in database | Dec 24, 2024 |
+| "Connecting..." UI | Show connection status with animations during call setup | Dec 26, 2024 |
+| "Preparing response..." UI | Yellow bouncing dots during SOMERA's thinking time | Dec 26, 2024 |
+| Graceful Error Handling | No error message shown when calls end naturally | Dec 26, 2024 |
+| Password Protection | Demo page protected with HTTP Basic Auth | Dec 25, 2024 |
 
 ---
 
@@ -24,8 +28,7 @@
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| "Connecting..." UI | Show connection status with animations | ✅ Complete |
-| VAPI Latency Tuning | Target 2-3 second response time (currently 3-5s) | Backend optimized, VAPI dashboard pending |
+| Knowledge Base Merge | Give SOMERA access to Jovee's program/course info | Planning |
 
 ---
 
@@ -35,8 +38,10 @@
 
 | Feature | Description | Dependencies |
 |---------|-------------|--------------|
-| Email Integration | Auto-send booking details to user's email | Shweta's email service info |
-| Credit-Based Payment | Usage limits for paid voice feature | Payment integration (Stripe) |
+| **Knowledge Base Merge** | SOMERA shares Jovee's program knowledge | None - can build now |
+| **Link Display in Transcript** | Show clickable links when SOMERA mentions programs | Needs knowledge base merge first |
+| **Email Integration** | Auto-send booking details/links to user's email | Shweta's email service info |
+| **Credit-Based Payment** | Usage limits for paid voice feature | Payment integration (Stripe) |
 
 ### Credit System Design (Draft)
 
@@ -44,12 +49,13 @@
 - User pays for credits (e.g., $1 = 100 messages)
 - Each voice message costs 1 credit
 - When credits reach 0, SOMERA prompts to recharge
-- Must cover: OpenAI API costs + profit margin
+- Must cover: OpenAI API costs + ElevenLabs + profit margin
 
 **Pricing Considerations:**
 - OpenAI API cost per message (gpt-4o-mini): ~$0.001-0.003
 - ElevenLabs TTS cost: varies by character count
-- Suggested: 1 cent per message (100 messages/$1) - needs validation
+- VAPI costs: orchestration fees
+- Suggested: 1 cent per message (100 messages/$1) - needs validation with Shweta
 
 **Database Requirements:**
 - `user_credits` table: user_id, credit_balance, last_updated
@@ -95,20 +101,35 @@
 - Transition mode: 20%
 - Guidance mode: 35%
 
+### Knowledge Base Architecture (Current)
+- **Jovee (RACEN)**: Uses ChromaDB `jovee_collection` - JoveHeal website content, programs, courses
+- **SOMERA Voice**: Uses VAPI webhook → `somera_engine.py` with separate coaching knowledge
+- **Gap**: SOMERA doesn't query Jovee's program database
+
 ---
 
 ## 📝 Notes & Decisions
 
+- **Dec 26, 2024**: Fixed "Preparing response..." UI to show during SOMERA's thinking time. Root cause was VAPI firing `speech-update` events before actual audio plays.
+- **Dec 26, 2024**: Improved error handling - normal call terminations no longer show error messages.
 - **Dec 24, 2024**: Chose pattern-based closure detection over LLM-based for speed. Will add smart detection when we have more transcript data.
 - **Credit Pricing**: Need to calculate exact API costs before finalizing. 1 cent/message is placeholder estimate.
 - **Email Integration**: Waiting for Shweta (US timezone) to provide email service details.
 
 ---
 
-## 🎯 Session Goals
+## 📌 Pending Questions for Shweta
 
-**Current Session:**
-1. ~~Add closure patterns~~ ✅
-2. Build "Connecting..." UI ⬅️ NOW
-3. VAPI latency tuning
-4. Plan credit system architecture
+See `docs/questions_for_shweta.md` for full list:
+1. Email API details (service provider, credentials)
+2. 4-parameter methodology questionnaire for readiness scoring
+3. Credit pricing validation (1 cent/message proposed)
+
+---
+
+## 🎯 Next Steps (Priority Order)
+
+1. **Knowledge Base Merge** - Give SOMERA access to Jovee's program info
+2. **Link Display** - Show program links in voice transcript
+3. **Email Integration** - When Shweta provides API details
+4. **Credit System** - After pricing validation
