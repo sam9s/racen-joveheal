@@ -722,38 +722,49 @@
 
   function createSafeContent(text) {
     const container = document.createDocumentFragment();
-    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    const combinedRegex = /(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s<>"\)]+)/g;
     let lastIndex = 0;
     let match;
 
-    while ((match = linkRegex.exec(text)) !== null) {
+    while ((match = combinedRegex.exec(text)) !== null) {
       if (match.index > lastIndex) {
-        container.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        const textBefore = text.substring(lastIndex, match.index);
+        container.appendChild(document.createTextNode(textBefore));
       }
       
-      const linkText = match[1];
-      const url = match[2];
-      
-      if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.target = '_blank';
-        anchor.rel = 'noopener noreferrer';
-        anchor.textContent = linkText;
-        container.appendChild(anchor);
-      } else {
-        container.appendChild(document.createTextNode(match[0]));
+      if (match[1]) {
+        const linkText = match[2];
+        const linkUrl = match[3];
+        const link = document.createElement('a');
+        link.href = linkUrl;
+        link.textContent = linkText;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.style.color = '#03a9f4';
+        link.style.textDecoration = 'underline';
+        container.appendChild(link);
+      } else if (match[4]) {
+        const plainUrl = match[4];
+        const link = document.createElement('a');
+        link.href = plainUrl;
+        link.textContent = plainUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.style.color = '#03a9f4';
+        link.style.textDecoration = 'underline';
+        container.appendChild(link);
       }
       
-      lastIndex = match.index + match[0].length;
+      lastIndex = combinedRegex.lastIndex;
     }
-
+    
     if (lastIndex < text.length) {
-      container.appendChild(document.createTextNode(text.slice(lastIndex)));
+      container.appendChild(document.createTextNode(text.substring(lastIndex)));
     }
-
+    
     return container;
   }
+
 
   function addMessage(role, content, skipNavigation = false) {
     const messagesContainer = document.getElementById('jovee-chat-messages');

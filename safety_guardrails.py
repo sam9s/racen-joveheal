@@ -90,6 +90,17 @@ JOVEHEAL_PROGRAM_URLS = {
     "Homepage": "https://joveheal.com/",
 }
 
+PROGRAM_CHECKOUT_URLS = {
+    "Career Healing": "https://www.joveheal.com/offers/rhGziNgA/checkout",
+    "Relationship Healing": "https://www.joveheal.com/offers/VJqWBbgT/checkout",
+    "Beyond the Hustle": "https://www.joveheal.com/offers/osL3L3qG/checkout",
+    "Inner Reset": "https://www.joveheal.com/offers/mCWHbhWE/checkout",
+    "Shed & Shine": "https://www.joveheal.com/offers/9FDNJ5hq/checkout",
+    "Money and Abundance": "https://www.joveheal.com/offers/rkz4QPFN/checkout",
+    "Meta-U": "https://www.joveheal.com/offers/HMbZqJgh/checkout",
+    "Healing Circle": "https://www.joveheal.com/offers/xBJPLFqC/checkout",
+}
+
 TOPIC_TO_PROGRAMS = {
     "career": ["Career Healing", "Beyond the Hustle"],
     "job": ["Career Healing", "Beyond the Hustle"],
@@ -460,6 +471,13 @@ CONTACT REQUEST:
 User: How can I contact you?
 Jovee: We'd love to hear from you! Would you like me to take you to our contact page?
 
+CONNECT WITH SHAVETA:
+User: Can you connect me with Shaveta?
+Jovee: We'd love to help you connect with Shaveta! The first step is to book a complimentary 15-minute Discovery Call. Would you like me to take you to the Discovery Call booking page?
+
+User: Yes
+Jovee: [NAVIGATE:https://bit.ly/apply-for-discovery] Taking you to the Discovery Call booking page now!
+
 === PAST CONVERSATIONS ===
 
 CRITICAL: When users ask about past discussions ("what did we talk about?", "what were we discussing?", "do you remember?"):
@@ -532,6 +550,28 @@ AVAILABLE PAGES:
 - About: https://joveheal.com/about/
 - Contact: https://www.joveheal.com/contact
 - Discovery Call: https://bit.ly/apply-for-discovery
+
+CHECKOUT PAGES (for purchasing programs):
+- Career Healing Checkout: https://www.joveheal.com/offers/rhGziNgA/checkout
+- Relationship Healing Checkout: https://www.joveheal.com/offers/VJqWBbgT/checkout
+- Beyond the Hustle Checkout: https://www.joveheal.com/offers/osL3L3qG/checkout
+- Inner Reset Checkout: https://www.joveheal.com/offers/mCWHbhWE/checkout
+- Shed & Shine Checkout: https://www.joveheal.com/offers/9FDNJ5hq/checkout
+- Money and Abundance Checkout: https://www.joveheal.com/offers/rkz4QPFN/checkout
+
+PURCHASE/ENROLLMENT EXAMPLES:
+
+User: How do I purchase Career Healing?
+Jovee: You can enroll in [Career Healing](https://joveheal.com/career-healing/) directly at [the checkout page](https://www.joveheal.com/offers/rhGziNgA/checkout). Would you like me to take you there now?
+
+User: Yes
+Jovee: [NAVIGATE:https://www.joveheal.com/offers/rhGziNgA/checkout] Taking you to the Career Healing checkout page now!
+
+User: I want to buy Beyond the Hustle
+Jovee: Great choice! You can enroll at [the checkout page](https://www.joveheal.com/offers/osL3L3qG/checkout). Would you like me to take you there?
+
+User: How much is Relationship Healing and how do I sign up?
+Jovee: You can view pricing and enroll in [Relationship Healing](https://joveheal.com/relationship-healing/) at [the checkout page](https://www.joveheal.com/offers/VJqWBbgT/checkout). Would you like me to take you to the checkout page?
 
 === REMEMBER ===
 
@@ -1167,7 +1207,7 @@ LIVE_SESSION_REFERRAL_PATTERNS = [
 
 LIVE_SESSION_REFERRAL_RESPONSE = """I can sense this is something that would really benefit from Shweta's deeper work 💙. What you're describing - that kind of healing - is something she works on powerfully in her one-to-one sessions.
 
-Would you like to explore working with her directly? You can book a complimentary 15-minute Discovery Call here: https://bit.ly/apply-for-discovery
+Would you like me to take you to the Discovery Call booking page so you can explore working with her directly?
 
 In the meantime, I'm here to listen and support you with what you're going through."""
 
