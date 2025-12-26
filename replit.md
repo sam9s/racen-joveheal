@@ -26,6 +26,16 @@ The system has three distinct assistants sharing common infrastructure:
 - The same guardrails and safety filters
 - The same readiness scoring system
 
+**Key Delivery Differences (Same Logic, Different Output):**
+
+| Aspect | SOMERA Text | SOMERA Voice |
+|--------|-------------|--------------|
+| Links | Display clickable URLs | NEVER speak URLs - offer to email instead |
+| Citations | Show "Inspired by" badges | Log for transcripts only |
+| Discovery Call | Share link directly | "Would you like me to email you the link?" |
+
+See `docs/SOMERA_INFORMED_COACH_DESIGN.md` for full design details.
+
 **Shared Privacy Guardrails (All Three Assistants):**
 All assistants use `filter_response_for_safety()` from `safety_guardrails.py` which includes:
 - PII detection/blocking (email, phone, address requests)
