@@ -92,13 +92,19 @@ JOVEHEAL_PROGRAM_URLS = {
 
 PROGRAM_CHECKOUT_URLS = {
     "Career Healing": "https://www.joveheal.com/offers/rhGziNgA/checkout",
-    "Relationship Healing": "https://www.joveheal.com/offers/VJqWBbgT/checkout",
+    "Relationship Healing": "https://www.joveheal.com/offers/eqmhnvnj/checkout",
     "Beyond the Hustle": "https://www.joveheal.com/offers/osL3L3qG/checkout",
     "Inner Reset": "https://www.joveheal.com/offers/mCWHbhWE/checkout",
-    "Shed & Shine": "https://www.joveheal.com/offers/9FDNJ5hq/checkout",
+    "Shed & Shine": "https://www.joveheal.com/offers/UinabNiW/checkout",
     "Money and Abundance": "https://www.joveheal.com/offers/rkz4QPFN/checkout",
     "Meta-U": "https://www.joveheal.com/offers/HMbZqJgh/checkout",
     "Healing Circle": "https://www.joveheal.com/offers/xBJPLFqC/checkout",
+    "Elevate 360": "https://www.joveheal.com/offers/tTHVwSi7/checkout",
+}
+
+PROGRAMS_WITHOUT_CHECKOUT = {
+    "Balance Mastery": "https://www.joveheal.com/apply-for-discovery-call",
+    "Inner Mastery Lounge": "https://www.joveheal.com/inner-mastery-lounge",
 }
 
 TOPIC_TO_PROGRAMS = {
@@ -553,11 +559,18 @@ AVAILABLE PAGES:
 
 CHECKOUT PAGES (for purchasing programs):
 - Career Healing Checkout: https://www.joveheal.com/offers/rhGziNgA/checkout
-- Relationship Healing Checkout: https://www.joveheal.com/offers/VJqWBbgT/checkout
+- Relationship Healing Checkout: https://www.joveheal.com/offers/eqmhnvnj/checkout
 - Beyond the Hustle Checkout: https://www.joveheal.com/offers/osL3L3qG/checkout
 - Inner Reset Checkout: https://www.joveheal.com/offers/mCWHbhWE/checkout
-- Shed & Shine Checkout: https://www.joveheal.com/offers/9FDNJ5hq/checkout
+- Shed & Shine Checkout: https://www.joveheal.com/offers/UinabNiW/checkout
 - Money and Abundance Checkout: https://www.joveheal.com/offers/rkz4QPFN/checkout
+- Meta-U Checkout: https://www.joveheal.com/offers/HMbZqJgh/checkout
+- Healing Circle Checkout: https://www.joveheal.com/offers/xBJPLFqC/checkout
+- Elevate 360 Checkout: https://www.joveheal.com/offers/tTHVwSi7/checkout
+
+SPECIAL PROGRAMS (no direct checkout - navigate to info/subscription page):
+- Balance Mastery: No checkout - redirect to Discovery Call: https://www.joveheal.com/apply-for-discovery-call
+- Inner Mastery Lounge: No checkout - subscription options on page: https://www.joveheal.com/inner-mastery-lounge
 
 PURCHASE/ENROLLMENT EXAMPLES:
 
@@ -571,11 +584,75 @@ User: I want to buy Beyond the Hustle
 Jovee: Great choice! You can enroll at [the checkout page](https://www.joveheal.com/offers/osL3L3qG/checkout). Would you like me to take you there?
 
 User: How much is Relationship Healing and how do I sign up?
-Jovee: You can view pricing and enroll in [Relationship Healing](https://joveheal.com/relationship-healing/) at [the checkout page](https://www.joveheal.com/offers/VJqWBbgT/checkout). Would you like me to take you to the checkout page?
+Jovee: You can view pricing and enroll in [Relationship Healing](https://joveheal.com/relationship-healing/) at [the checkout page](https://www.joveheal.com/offers/eqmhnvnj/checkout). Would you like me to take you to the checkout page?
+
+User: How do I join Elevate 360?
+Jovee: You can enroll in [Elevate 360](https://joveheal.com/elevate-360/) at [the checkout page](https://www.joveheal.com/offers/tTHVwSi7/checkout). Would you like me to take you there?
+
+User: I want to sign up for Shed & Shine
+Jovee: Great! You can view details and enroll in [Shed & Shine](https://joveheal.com/shed-and-shine/) at [the checkout page](https://www.joveheal.com/offers/UinabNiW/checkout). Would you like me to take you there?
+
+User: How do I purchase Inner Reset?
+Jovee: You can enroll in [Inner Reset](https://joveheal.com/inner-reset/) at [the checkout page](https://www.joveheal.com/offers/mCWHbhWE/checkout). Would you like me to take you there?
+
+User: I want to buy Healing Circle
+Jovee: You can join [Healing Circle](https://joveheal.com/healing-circle/) at [the checkout page](https://www.joveheal.com/offers/xBJPLFqC/checkout). Would you like me to take you there?
+
+User: How do I purchase Money and Abundance?
+Jovee: You can enroll in [Money and Abundance](https://joveheal.com/money-abundance-manifestation/) at [the checkout page](https://www.joveheal.com/offers/rkz4QPFN/checkout). Would you like me to take you there?
+
+SPECIAL PROGRAMS (no direct checkout):
+
+User: How do I sign up for Balance Mastery?
+Jovee: Balance Mastery is a one-to-one coaching experience with Shweta. To get started, you can book a complimentary Discovery Call where she'll learn about your needs. Would you like me to take you to the [Discovery Call booking page](https://www.joveheal.com/apply-for-discovery-call)?
+
+User: I'm interested in Inner Mastery Lounge
+Jovee: The [Inner Mastery Lounge](https://www.joveheal.com/inner-mastery-lounge) offers both monthly and yearly subscription options. You can view both options and choose what works best for you on the program page. Would you like me to take you there?
 
 === REMEMBER ===
 
 You are Jovee — warm, honest, helpful. Prioritize the visitor's wellbeing over making a sale. Stay within the knowledge base."""
+
+
+def inject_checkout_urls(response: str, user_message: str = "") -> str:
+    """
+    Post-process LLM response to ensure checkout URLs are included when needed.
+    
+    If the response mentions "checkout page" without an actual URL, this function
+    will inject the correct checkout URL based on the program being discussed.
+    """
+    import re
+    
+    if 'checkout' not in response.lower():
+        return response
+    
+    if re.search(r'\[[^\]]*checkout[^\]]*\]\([^)]+\)', response, re.IGNORECASE):
+        return response
+    if re.search(r'https://www\.joveheal\.com/offers/[^/]+/checkout', response):
+        return response
+    
+    program_found = None
+    response_lower = response.lower()
+    message_lower = user_message.lower() if user_message else ""
+    combined_text = response_lower + " " + message_lower
+    
+    for program_name in PROGRAM_CHECKOUT_URLS.keys():
+        if program_name.lower() in combined_text:
+            program_found = program_name
+            break
+    
+    if program_found and program_found in PROGRAM_CHECKOUT_URLS:
+        checkout_url = PROGRAM_CHECKOUT_URLS[program_found]
+        result = re.sub(
+            r'(our\s+)?checkout\s+page(?!\])',
+            f'[the checkout page]({checkout_url})',
+            response,
+            flags=re.IGNORECASE,
+            count=1
+        )
+        return result
+    
+    return response
 
 
 def inject_program_links(response: str) -> str:
