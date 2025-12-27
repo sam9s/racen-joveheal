@@ -24,6 +24,7 @@ from somera_engine import generate_somera_response, generate_somera_response_str
 from conversation_logger import log_feedback, log_conversation, ensure_session_exists
 from database import get_or_create_user, get_user_conversation_history, get_conversation_summary, upsert_conversation_summary
 from knowledge_base import initialize_knowledge_base, get_knowledge_base_stats
+from rate_limiter import rate_limiter, get_client_ip
 
 app = Flask(__name__)
 CORS(app)
@@ -82,6 +83,18 @@ def health_check():
 def channel_status():
     """Get configuration status of all messaging channels."""
     return jsonify(get_channel_status())
+
+
+@app.route("/api/admin/rate-limiter/stats", methods=["GET"])
+def rate_limiter_stats():
+    """Get rate limiter statistics for monitoring.
+    
+    Protected endpoint - requires internal API key.
+    """
+    if not validate_internal_api_key():
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    return jsonify(rate_limiter.get_stats())
 
 
 def get_canonical_webhook_url(endpoint: str) -> str:
@@ -303,6 +316,31 @@ def api_chat_stream():
     session_id = data.get("session_id", "anonymous")
     conversation_history = data.get("conversation_history", [])
     
+    client_ip = get_client_ip(request)
+    captcha_answer = data.get("captcha_answer")
+    
+    if captcha_answer:
+        if rate_limiter.verify_captcha(session_id, captcha_answer):
+            pass
+        else:
+            return jsonify({
+                "error": "Incorrect answer. Please try again.",
+                "captcha_failed": True
+            }), 400
+    
+    allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
+    if not allowed:
+        if captcha:
+            return jsonify({
+                "error": reason,
+                "captcha_required": True,
+                "captcha": captcha
+            }), 429
+        return jsonify({"error": reason, "rate_limited": True}), 429
+    
+    rate_limiter.log_request(client_ip, session_id, "/api/chat/stream", message[:50] if message else "")
+    rate_limiter.record_request(client_ip, session_id)
+    
     is_trusted_request = validate_internal_api_key()
     verified_user = data.get("verified_user") if is_trusted_request else None
     
@@ -490,6 +528,31 @@ def api_somera_stream():
     message = data.get("message")
     session_id = data.get("session_id", "anonymous")
     user_name = data.get("user_name")
+    
+    client_ip = get_client_ip(request)
+    captcha_answer = data.get("captcha_answer")
+    
+    if captcha_answer:
+        if rate_limiter.verify_captcha(session_id, captcha_answer):
+            pass
+        else:
+            return jsonify({
+                "error": "Incorrect answer. Please try again.",
+                "captcha_failed": True
+            }), 400
+    
+    allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
+    if not allowed:
+        if captcha:
+            return jsonify({
+                "error": reason,
+                "captcha_required": True,
+                "captcha": captcha
+            }), 429
+        return jsonify({"error": reason, "rate_limited": True}), 429
+    
+    rate_limiter.log_request(client_ip, session_id, "/api/somera/stream", message[:50] if message else "")
+    rate_limiter.record_request(client_ip, session_id)
     
     if not message:
         return jsonify({"error": "Message is required"}), 400

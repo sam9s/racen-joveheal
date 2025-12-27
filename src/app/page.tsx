@@ -75,6 +75,30 @@ export default function Home() {
       });
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 429) {
+          if (errorData.captcha_required) {
+            const userAnswer = prompt(errorData.captcha?.question || 'Please verify you are human');
+            if (userAnswer) {
+              const retryResponse = await fetch('/api/chat/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  message: content.trim(),
+                  session_id: sessionId,
+                  conversation_history: messages.map((m) => ({ role: m.role, content: m.content })),
+                  captcha_answer: userAnswer,
+                }),
+              });
+              if (retryResponse.ok) {
+                setIsLoading(false);
+                sendMessage(content);
+                return;
+              }
+            }
+          }
+          throw new Error(errorData.error || 'Rate limit exceeded. Please wait a moment.');
+        }
         throw new Error('Stream request failed');
       }
 
