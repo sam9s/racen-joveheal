@@ -273,6 +273,36 @@ SOLUTION_REQUEST_PATTERNS = [
     "any steps",
     "some steps",
     "steps you can",
+    # NEW: Direct solution requests (from Conversation 2 failures)
+    "give me solution",
+    "give me a solution",
+    "can you give me solution",
+    "can you give me a solution",
+    "tell me what's going on",
+    "tell me whats going on",
+    "tell me what is going on",
+    "what is the problem",
+    "what's the problem",
+    "whats the problem",
+    "what is wrong",
+    "what's wrong",
+    "whats wrong",
+    "help me",  # Standalone help me
+    "i need help",
+    "please help",
+    "how would i know",
+    "that's why i'm asking you",
+    "thats why im asking you",
+    "that is why i am asking you",
+    # Frustration signals that indicate need for solutions
+    "stupid words",
+    "stop asking questions",
+    "just tell me",
+    "just give me",
+    "answer my question",
+    "answer me",
+    "i'm asking you",
+    "im asking you",
     "steps i can",
     "steps i should",
     "pointers you can",
@@ -621,12 +651,19 @@ The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PR
    
    Which of these resonates with you?"
 
-4. **BANNED PHRASES - DO NOT USE:**
+4. **BANNED PHRASES - ABSOLUTELY DO NOT USE:**
    - "Would you be open to..."
    - "Would it help if I shared..."
+   - "While I can't provide specific solutions..."
+   - "I'm not able to tell you exactly..."
+   - "I can't tell you what to do..."
+   - "I can't provide specific solutions"
    - Any question asking for permission before giving guidance
+   - Any deflection or refusal to help
 
 5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom with clear, scannable formatting.
+
+6. **CRITICAL - MUST HELP:** The user has explicitly asked for help. You MUST give them something concrete from the coaching content. Do NOT deflect, do NOT say you can't help, do NOT redirect back to questions. DELIVER VALUE NOW.
 """
     elif readiness_guide or depth_guide:
         print(f"[SOMERA Debug - Non-stream] READINESS-BASED GUIDANCE MODE")
@@ -892,12 +929,19 @@ The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PR
    
    Which of these resonates with you?"
 
-4. **BANNED PHRASES - DO NOT USE:**
+4. **BANNED PHRASES - ABSOLUTELY DO NOT USE:**
    - "Would you be open to..."
    - "Would it help if I shared..."
+   - "While I can't provide specific solutions..."
+   - "I'm not able to tell you exactly..."
+   - "I can't tell you what to do..."
+   - "I can't provide specific solutions"
    - Any question asking for permission before giving guidance
+   - Any deflection or refusal to help
 
 5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom with clear, scannable formatting.
+
+6. **CRITICAL - MUST HELP:** The user has explicitly asked for help. You MUST give them something concrete from the coaching content. Do NOT deflect, do NOT say you can't help, do NOT redirect back to questions. DELIVER VALUE NOW.
 """
     elif readiness_guide or depth_guide:
         print(f"[SOMERA Debug - Stream] READINESS-BASED GUIDANCE MODE")

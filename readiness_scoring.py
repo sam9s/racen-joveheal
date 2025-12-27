@@ -201,6 +201,37 @@ def calculate_conversation_depth_score(conversation_history: List[dict]) -> floa
         return 0.8
 
 
+EXPLICIT_SOLUTION_PATTERNS = [
+    r"\bgive me (?:a )?solution\b",
+    r"\bhelp me\b",
+    r"\bi need help\b",
+    r"\btell me what(?:'s| is)? (?:going on|wrong|the problem)\b",
+    r"\bwhat(?:'s| is)? (?:the problem|wrong|going on)\b",
+    r"\bhow would i know\b",
+    r"\bthat(?:'s| is)? why i(?:'m| am) asking you\b",
+    r"\bjust tell me\b",
+    r"\bjust give me\b",
+    r"\bstop asking questions\b",
+    r"\banswer (?:my question|me)\b",
+    r"\bi(?:'m| am) asking you\b",
+    r"\bplease help\b",
+    r"\bcan you help\b",
+    r"\bwhat should i do\b",
+    r"\bwhat can i do\b",
+]
+
+def detect_explicit_solution_request(message: str) -> bool:
+    """
+    Fast-path detection for explicit solution requests.
+    When user directly asks for help/solution, skip the scoring and go to guide mode.
+    """
+    message_lower = message.lower()
+    for pattern in EXPLICIT_SOLUTION_PATTERNS:
+        if re.search(pattern, message_lower):
+            return True
+    return False
+
+
 def calculate_readiness_score(
     current_message: str,
     conversation_history: List[dict] = None
@@ -217,6 +248,23 @@ def calculate_readiness_score(
     """
     if conversation_history is None:
         conversation_history = []
+    
+    # FAST-PATH: Explicit solution requests immediately trigger guide mode
+    if detect_explicit_solution_request(current_message):
+        return {
+            "total_score": 0.90,
+            "is_ready": True,
+            "recommendation": "guide",
+            "components": {
+                "breakthrough": 0.0,
+                "confusion": 0.0,
+                "exhaustion": 0.0,
+                "engagement_drop": 0.0,
+                "repetition": 0.0,
+                "depth": 0.0,
+            },
+            "explicit_request": True
+        }
     
     breakthrough = calculate_breakthrough_score(current_message)
     confusion = calculate_confusion_score(current_message)
