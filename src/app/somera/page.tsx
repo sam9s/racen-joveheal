@@ -5,26 +5,65 @@ import { useTheme } from '@/components/ThemeProvider';
 import Image from 'next/image';
 
 function renderMessageWithLinks(content: string): React.ReactNode {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = content.split(urlRegex);
-  
-  return parts.map((part, index) => {
-    if (urlRegex.test(part)) {
-      urlRegex.lastIndex = 0;
-      return (
+  const parts: React.ReactNode[] = [];
+  const combinedRegex = /(\*\*([^*]+)\*\*)|(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s]+)/g;
+  let lastIndex = 0;
+  let match;
+  let matchIndex = 0;
+
+  while ((match = combinedRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index));
+    }
+    
+    if (match[1]) {
+      // Bold text: **text**
+      const boldText = match[2];
+      parts.push(
+        <strong key={`bold-${matchIndex}`} className="font-semibold">
+          {boldText}
+        </strong>
+      );
+    } else if (match[3]) {
+      // Markdown link: [text](url)
+      const linkText = match[4];
+      const url = match[5];
+      parts.push(
         <a
-          key={index}
-          href={part}
+          key={`link-${matchIndex}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-400 hover:text-primary-300 underline underline-offset-2"
+        >
+          {linkText}
+        </a>
+      );
+    } else if (match[6]) {
+      // Raw URL
+      const url = match[6];
+      parts.push(
+        <a
+          key={`url-${matchIndex}`}
+          href={url}
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary-400 hover:text-primary-300 underline underline-offset-2 break-all"
         >
-          {part}
+          {url}
         </a>
       );
     }
-    return part;
-  });
+    
+    matchIndex++;
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [content];
 }
 
 interface Message {
