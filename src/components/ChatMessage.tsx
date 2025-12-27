@@ -69,11 +69,12 @@ function performNavigation(url: string): void {
   }
 }
 
-function renderLinks(text: string): React.ReactNode[] {
-  const combinedRegex = /(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s]+)/g;
+function renderFormattedText(text: string, keyPrefix: string = ''): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
+  const combinedRegex = /(\*\*([^*]+)\*\*)|(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s]+)/g;
   let lastIndex = 0;
   let match;
+  let matchIndex = 0;
 
   while ((match = combinedRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
@@ -81,11 +82,20 @@ function renderLinks(text: string): React.ReactNode[] {
     }
     
     if (match[1]) {
-      const linkText = match[2];
-      const url = match[3];
+      // Bold text: **text**
+      const boldText = match[2];
+      parts.push(
+        <strong key={`${keyPrefix}bold-${matchIndex}`} className="font-semibold">
+          {boldText}
+        </strong>
+      );
+    } else if (match[3]) {
+      // Markdown link: [text](url)
+      const linkText = match[4];
+      const url = match[5];
       parts.push(
         <a
-          key={match.index}
+          key={`${keyPrefix}link-${matchIndex}`}
           href={url}
           target="_blank"
           rel="noopener noreferrer"
@@ -94,11 +104,12 @@ function renderLinks(text: string): React.ReactNode[] {
           {linkText}
         </a>
       );
-    } else if (match[4]) {
-      const url = match[4];
+    } else if (match[6]) {
+      // Raw URL
+      const url = match[6];
       parts.push(
         <a
-          key={match.index}
+          key={`${keyPrefix}url-${matchIndex}`}
           href={url}
           target="_blank"
           rel="noopener noreferrer"
@@ -109,6 +120,7 @@ function renderLinks(text: string): React.ReactNode[] {
       );
     }
     
+    matchIndex++;
     lastIndex = match.index + match[0].length;
   }
 
@@ -117,6 +129,10 @@ function renderLinks(text: string): React.ReactNode[] {
   }
 
   return parts.length > 0 ? parts : [text];
+}
+
+function renderLinks(text: string): React.ReactNode[] {
+  return renderFormattedText(text);
 }
 
 export function ChatMessage({ message, onFeedback }: ChatMessageProps) {
