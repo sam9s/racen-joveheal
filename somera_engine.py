@@ -338,10 +338,27 @@ NEGATION_PREFIXES = [
     "not ", "no ", "never ", "later ", "maybe later"
 ]
 
+SOFT_GUIDANCE_PATTERNS = [
+    "what do you suggest",
+    "what do you think",
+    "your suggestion",
+    "your thoughts",
+]
+
+OPENNESS_PATTERNS = [
+    "i'm open",
+    "im open",
+    "open to everything",
+    "open to that",
+    "open to anything",
+]
+
 def is_solution_requested(message: str, conversation_history: List[dict] = None) -> bool:
     """
     Detect if the user is explicitly asking for solutions, steps, or guidance.
     Also checks if they've asked multiple times (indicating frustration with probing).
+    
+    ENHANCED: Triggers earlier when user asks for help 2+ times.
     
     Handles negation: "I don't need help" won't trigger solution mode.
     """
@@ -359,25 +376,50 @@ def is_solution_requested(message: str, conversation_history: List[dict] = None)
                 return True
         return False
     
+    def message_contains_negation(text: str) -> bool:
+        """Check if the message contains general negation that rejects guidance."""
+        rejection_phrases = [
+            "not anymore", "no longer", "don't want", "dont want",
+            "don't need", "dont need", "stop", "enough", "no more",
+            "not ready", "later", "maybe later", "not now"
+        ]
+        for phrase in rejection_phrases:
+            if phrase in text.lower():
+                return True
+        return False
+    
     for pattern in SOLUTION_REQUEST_PATTERNS:
         if pattern in msg_lower and not pattern_is_negated(msg_lower, pattern):
             return True
     
     if conversation_history:
         solution_request_count = 0
-        for msg in conversation_history[-6:]:
+        for msg in conversation_history[-8:]:
             if msg.get("role") == "user":
                 content = msg.get("content", "").lower()
                 for pattern in SOLUTION_REQUEST_PATTERNS:
                     if pattern in content and not pattern_is_negated(content, pattern):
                         solution_request_count += 1
                         break
+        
+        if solution_request_count >= 2:
+            if not message_contains_negation(msg_lower):
+                return True
+        
         if solution_request_count >= 1:
-            for pattern in SOLUTION_REQUEST_PATTERNS:
+            if message_contains_negation(msg_lower):
+                return False
+            for pattern in SOFT_GUIDANCE_PATTERNS:
                 if pattern in msg_lower and not pattern_is_negated(msg_lower, pattern):
                     return True
-            if solution_request_count >= 2:
-                return True
+            for pattern in OPENNESS_PATTERNS:
+                if pattern in msg_lower and not pattern_is_negated(msg_lower, pattern):
+                    has_solution_context = any(
+                        sol_pattern in msg_lower 
+                        for sol_pattern in ["help", "guide", "suggest", "step", "advice"]
+                    )
+                    if has_solution_context:
+                        return True
     
     return False
 

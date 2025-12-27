@@ -218,6 +218,16 @@ EXPLICIT_SOLUTION_PATTERNS = [
     r"\bcan you help\b",
     r"\bwhat should i do\b",
     r"\bwhat can i do\b",
+    r"\bwhat do you suggest\b",
+    r"\bwhat do you think\b",
+    r"\byour suggestion\b",
+    r"\bgive me (?:some )?(?:steps|guidance|pointers|tips)\b",
+    r"\bcertain (?:steps|pointers|tips)\b",
+    r"\bi(?:'m| am) open\b",
+    r"\bopen to (?:everything|anything|that)\b",
+    r"\bi need your (?:help|guidance|advice)\b",
+    r"\byou can (?:help|assist|guide)\b",
+    r"\bcan you (?:assist|guide)\b",
 ]
 
 def detect_explicit_solution_request(message: str) -> bool:

@@ -1205,6 +1205,8 @@ Which of these resonates most with you?"
 - End with a clear, simple question"""
 
     acknowledgement_throttle = ""
+    question_throttle = ""
+    
     if conversation_turns >= 2:
         acknowledgement_throttle = """
 
@@ -1229,10 +1231,35 @@ Instead, JUMP DIRECTLY into:
 - "Here's what stands out to me..."
 - Just start with the question or insight directly"""
 
+    if conversation_turns >= 3:
+        question_throttle = """
+
+=== ⚠️ QUESTION PHRASING THROTTLE (ACTIVE) ===
+
+You have been asking questions for several turns. DO NOT use these deflective question phrases:
+- "Would you be open to..."
+- "Would it help if..."  
+- "Would you feel comfortable..."
+- "Would you like to explore..."
+- "Could you share more about..."
+
+After 3+ turns, be MORE DIRECT:
+- Instead of "Would you be open to exploring X?" → Just explore X directly
+- Instead of "Would it help if I shared some thoughts?" → Share the thoughts
+- Instead of "Would you feel comfortable trying Y?" → Say "Here's what you could try: Y"
+
+**USE DIRECT LANGUAGE:**
+- "Here's what I'm noticing..."
+- "Let me share what stands out..."
+- "Based on what you've shared, here's a perspective..."
+- "One approach you might try is..."
+
+RULE: If the user has asked for help 2+ times, STOP asking permission and START giving guidance."""
+
     if delivery_mode == "voice":
-        return base_prompt + voice_specific + acknowledgement_throttle
+        return base_prompt + voice_specific + acknowledgement_throttle + question_throttle
     else:
-        return base_prompt + text_specific + acknowledgement_throttle
+        return base_prompt + text_specific + acknowledgement_throttle + question_throttle
 
 
 def log_high_risk_message(message: str, category: str) -> dict:
