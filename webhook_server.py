@@ -1137,7 +1137,8 @@ def handle_vapi_tool_calls(message: dict, call_id: str):
             try:
                 response_data = generate_somera_response(
                     user_message=user_message,
-                    conversation_history=history
+                    conversation_history=history,
+                    delivery_mode="voice"
                 )
                 response_text = response_data.get("response", "I'm here to listen. Could you tell me more?")
                 response_text = optimize_response_for_voice(response_text)
@@ -1146,7 +1147,7 @@ def handle_vapi_tool_calls(message: dict, call_id: str):
                 history.append({"role": "assistant", "content": response_text})
                 vapi_conversation_histories[call_id] = history[-20:]
                 
-                print(f"[VAPI] SOMERA response: {response_text[:100]}...")
+                print(f"[VAPI] SOMERA response (voice mode): {response_text[:100]}...")
                 
                 results.append({
                     "toolCallId": tool_call_id,
@@ -1646,7 +1647,8 @@ def vapi_custom_llm():
                 else:
                     response_data = generate_somera_response(
                         user_message=user_message,
-                        conversation_history=history
+                        conversation_history=history,
+                        delivery_mode="voice"
                     )
                     response_text = response_data.get("response", "I'm here to listen. Could you tell me more?")
                     sources = response_data.get("sources", [])

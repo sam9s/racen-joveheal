@@ -493,7 +493,8 @@ def generate_somera_response(
     user_message: str,
     conversation_history: List[dict] = None,
     user_name: str = None,
-    n_context_docs: int = 5
+    n_context_docs: int = 5,
+    delivery_mode: str = "text"
 ) -> dict:
     """
     Generate a SOMERA coaching response using RAG with coaching content.
@@ -503,6 +504,7 @@ def generate_somera_response(
         conversation_history: Previous conversation messages
         user_name: Optional user name for personalization
         n_context_docs: Number of coaching documents to retrieve
+        delivery_mode: "text" or "voice" - affects response formatting and length
     
     Returns:
         Dict with response, sources, and safety info
@@ -537,7 +539,10 @@ def generate_somera_response(
     
     has_relevant_content = bool(relevant_docs) and context != "No specific coaching content found for this topic."
     
-    system_prompt = get_somera_system_prompt()
+    solution_mode = is_solution_requested(user_message, conversation_history)
+    conversation_turns = count_conversation_turns(conversation_history)
+    
+    system_prompt = get_somera_system_prompt(delivery_mode=delivery_mode, conversation_turns=conversation_turns)
     
     personalization = ""
     if user_name:
@@ -559,13 +564,10 @@ When appropriate, gently probe if they notice similar feelings in other areas:
 
 {cross_pillar_context}"""
     
-    solution_mode = is_solution_requested(user_message, conversation_history)
-    conversation_turns = count_conversation_turns(conversation_history)
-    
     readiness_result = calculate_readiness_score(user_message, conversation_history)
     readiness_context = get_transition_context(readiness_result)
     
-    print(f"[SOMERA Debug - Non-stream] Message: '{user_message[:50]}...', Solution mode: {solution_mode}, Turns: {conversation_turns}")
+    print(f"[SOMERA Debug - Non-stream] Mode: {delivery_mode}, Message: '{user_message[:50]}...', Solution mode: {solution_mode}, Turns: {conversation_turns}")
     print(f"[SOMERA Debug - Non-stream] Readiness: {readiness_result['total_score']:.1%} ({readiness_result['recommendation']})")
     
     readiness_guide = readiness_result["recommendation"] == "guide"
@@ -576,7 +578,26 @@ When appropriate, gently probe if they notice similar feelings in other areas:
     
     if solution_mode:
         print(f"[SOMERA Debug - Non-stream] EXPLICIT SOLUTION MODE ACTIVATED!")
-        solution_mode_directive = """
+        if delivery_mode == "voice":
+            solution_mode_directive = """
+
+=== ⚠️ VOICE GUIDANCE MODE - KEEP IT SHORT ===
+
+The user asked for guidance. Give them ONE insight in 2-3 sentences MAX.
+
+**VOICE RULES (CRITICAL):**
+1. ONE insight only - not multiple points
+2. Maximum 3 sentences total
+3. End with "Would you like to hear more?" or similar invitation
+4. NO lists, NO "First... Second..."
+
+**EXAMPLE:**
+"That pattern of giving but not receiving - it often comes from a belief that asking for your needs makes you a burden. When you can start honoring your own needs as valid, the dynamic shifts. Would you like to explore this a bit more?"
+
+That's it. Short. Direct. One idea at a time.
+"""
+        else:
+            solution_mode_directive = """
 
 === ⚠️ SOLUTION MODE ACTIVATED - CRITICAL INSTRUCTION ===
 
@@ -586,32 +607,46 @@ The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PR
 
 1. **DO NOT ASK ANY QUESTIONS** - Not even "Would you be open to..." or "What do you think might help?" or any variation. The user has ALREADY asked for help.
 
-2. **PROVIDE 2-3 CONCRETE INSIGHTS NOW** from the coaching content:
+2. **PROVIDE 2-3 CONCRETE INSIGHTS** from the coaching content using bullet points:
    - Start with a brief acknowledgment (1 sentence MAX)
    - Then immediately provide actionable perspectives or steps
-   - Each insight should be specific and grounded in the coaching wisdom
+   - Use bullet points (•) for clarity
 
-3. **FORMAT YOUR RESPONSE LIKE THIS:**
-   "Thank you for sharing that with me. Based on what you've described, here are some perspectives that might resonate:
+3. **FORMAT YOUR RESPONSE WITH BULLETS:**
+   "I hear what you're saying about [their issue].
 
-   First, [specific insight from coaching content about their situation]...
-
-   Second, [another concrete perspective or reframe]...
-
-   If you'd like to go deeper with these insights, working with Shweta directly can help you..."
+   Here's what I'm noticing:
+   • **[First insight]** — Specific perspective from coaching content
+   • **[Second insight]** — Another actionable reframe
+   
+   Which of these resonates with you?"
 
 4. **BANNED PHRASES - DO NOT USE:**
    - "Would you be open to..."
    - "Would it help if I shared..."
-   - "What do you think..."
-   - "How does that resonate..."
-   - Any question asking for their input before giving guidance
+   - Any question asking for permission before giving guidance
 
-5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom, not gathering more information. Give them something valuable to take away RIGHT NOW.
+5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom with clear, scannable formatting.
 """
     elif readiness_guide or depth_guide:
         print(f"[SOMERA Debug - Non-stream] READINESS-BASED GUIDANCE MODE")
-        solution_mode_directive = f"""
+        if delivery_mode == "voice":
+            solution_mode_directive = f"""
+
+=== VOICE GUIDANCE MODE ===
+
+The user seems ready for gentle guidance. Keep it SHORT and CONVERSATIONAL.
+
+**VOICE RULES:**
+- 2-3 sentences max
+- ONE insight or reflection
+- Simple question at the end
+
+**EXAMPLE:**
+"I'm noticing a pattern in what you're sharing - when you express your needs, you feel like a burden. That's worth exploring. Does that resonate with you?"
+"""
+        else:
+            solution_mode_directive = f"""
 
 === GUIDANCE MODE - GENTLE TRANSITION ===
 
@@ -622,16 +657,13 @@ Readiness score: {readiness_result['total_score']:.0%}
 
 1. **Lead with empathy** - Acknowledge their experience with 1-2 warm sentences
 
-2. **Offer 1-2 perspectives** from the coaching content:
-   - Present insights as invitations, not prescriptions
-   - "One thing that often helps in situations like this..."
-   - "Something worth considering..."
+2. **Offer 1-2 perspectives** from the coaching content using bullet points:
+   • **First insight** — Present as invitation, not prescription
+   • **Second insight** — Another perspective worth considering
 
 3. **Leave space for their response** - End with a gentle check-in:
    - "Does any of this resonate with you?"
    - "Would you like to explore this further?"
-
-4. **Stay curious** - You may still ask ONE thoughtful follow-up question if it serves their exploration
 
 Balance: 50% acknowledgment/empathy, 50% gentle guidance.
 """
@@ -720,10 +752,18 @@ def generate_somera_response_stream(
     user_message: str,
     conversation_history: List[dict] = None,
     user_name: str = None,
-    n_context_docs: int = 5
+    n_context_docs: int = 5,
+    delivery_mode: str = "text"
 ) -> Generator[dict, None, None]:
     """
     Generate a streaming SOMERA coaching response.
+    
+    Args:
+        user_message: The user's message
+        conversation_history: Previous conversation messages
+        user_name: Optional user name for personalization
+        n_context_docs: Number of coaching documents to retrieve
+        delivery_mode: "text" or "voice" - affects response formatting and length
     
     Yields chunks with type 'content' for text and 'done' when complete.
     """
@@ -770,7 +810,10 @@ def generate_somera_response_stream(
         context = format_coaching_context(relevant_docs)
         has_relevant_content = bool(relevant_docs) and context != "No specific coaching content found for this topic."
     
-    system_prompt = get_somera_system_prompt()
+    solution_mode = is_solution_requested(user_message, conversation_history)
+    conversation_turns = count_conversation_turns(conversation_history)
+    
+    system_prompt = get_somera_system_prompt(delivery_mode=delivery_mode, conversation_turns=conversation_turns)
     
     personalization = ""
     if user_name:
@@ -792,13 +835,10 @@ When appropriate, gently probe if they notice similar feelings in other areas:
 
 {cross_pillar_context}"""
     
-    solution_mode = is_solution_requested(user_message, conversation_history)
-    conversation_turns = count_conversation_turns(conversation_history)
-    
     readiness_result = calculate_readiness_score(user_message, conversation_history)
     readiness_context = get_transition_context(readiness_result)
     
-    print(f"[SOMERA Debug - Stream] Message: '{user_message[:50]}...', Solution mode: {solution_mode}, Turns: {conversation_turns}")
+    print(f"[SOMERA Debug - Stream] Mode: {delivery_mode}, Message: '{user_message[:50]}...', Solution mode: {solution_mode}, Turns: {conversation_turns}")
     print(f"[SOMERA Debug - Stream] Readiness: {readiness_result['total_score']:.1%} ({readiness_result['recommendation']})")
     
     readiness_guide = readiness_result["recommendation"] == "guide"
@@ -809,7 +849,26 @@ When appropriate, gently probe if they notice similar feelings in other areas:
     
     if solution_mode:
         print(f"[SOMERA Debug - Stream] EXPLICIT SOLUTION MODE ACTIVATED!")
-        solution_mode_directive = """
+        if delivery_mode == "voice":
+            solution_mode_directive = """
+
+=== ⚠️ VOICE GUIDANCE MODE - KEEP IT SHORT ===
+
+The user asked for guidance. Give them ONE insight in 2-3 sentences MAX.
+
+**VOICE RULES (CRITICAL):**
+1. ONE insight only - not multiple points
+2. Maximum 3 sentences total
+3. End with "Would you like to hear more?" or similar invitation
+4. NO lists, NO "First... Second..."
+
+**EXAMPLE:**
+"That pattern of giving but not receiving - it often comes from a belief that asking for your needs makes you a burden. When you can start honoring your own needs as valid, the dynamic shifts. Would you like to explore this a bit more?"
+
+That's it. Short. Direct. One idea at a time.
+"""
+        else:
+            solution_mode_directive = """
 
 === ⚠️ SOLUTION MODE ACTIVATED - CRITICAL INSTRUCTION ===
 
@@ -819,32 +878,46 @@ The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PR
 
 1. **DO NOT ASK ANY QUESTIONS** - Not even "Would you be open to..." or "What do you think might help?" or any variation. The user has ALREADY asked for help.
 
-2. **PROVIDE 2-3 CONCRETE INSIGHTS NOW** from the coaching content:
+2. **PROVIDE 2-3 CONCRETE INSIGHTS** from the coaching content using bullet points:
    - Start with a brief acknowledgment (1 sentence MAX)
    - Then immediately provide actionable perspectives or steps
-   - Each insight should be specific and grounded in the coaching wisdom
+   - Use bullet points (•) for clarity
 
-3. **FORMAT YOUR RESPONSE LIKE THIS:**
-   "Thank you for sharing that with me. Based on what you've described, here are some perspectives that might resonate:
+3. **FORMAT YOUR RESPONSE WITH BULLETS:**
+   "I hear what you're saying about [their issue].
 
-   First, [specific insight from coaching content about their situation]...
-
-   Second, [another concrete perspective or reframe]...
-
-   If you'd like to go deeper with these insights, working with Shweta directly can help you..."
+   Here's what I'm noticing:
+   • **[First insight]** — Specific perspective from coaching content
+   • **[Second insight]** — Another actionable reframe
+   
+   Which of these resonates with you?"
 
 4. **BANNED PHRASES - DO NOT USE:**
    - "Would you be open to..."
    - "Would it help if I shared..."
-   - "What do you think..."
-   - "How does that resonate..."
-   - Any question asking for their input before giving guidance
+   - Any question asking for permission before giving guidance
 
-5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom, not gathering more information. Give them something valuable to take away RIGHT NOW.
+5. **YOUR ROLE NOW:** You are a coach DELIVERING wisdom with clear, scannable formatting.
 """
     elif readiness_guide or depth_guide:
         print(f"[SOMERA Debug - Stream] READINESS-BASED GUIDANCE MODE")
-        solution_mode_directive = f"""
+        if delivery_mode == "voice":
+            solution_mode_directive = f"""
+
+=== VOICE GUIDANCE MODE ===
+
+The user seems ready for gentle guidance. Keep it SHORT and CONVERSATIONAL.
+
+**VOICE RULES:**
+- 2-3 sentences max
+- ONE insight or reflection
+- Simple question at the end
+
+**EXAMPLE:**
+"I'm noticing a pattern in what you're sharing - when you express your needs, you feel like a burden. That's worth exploring. Does that resonate with you?"
+"""
+        else:
+            solution_mode_directive = f"""
 
 === GUIDANCE MODE - GENTLE TRANSITION ===
 
@@ -855,16 +928,13 @@ Readiness score: {readiness_result['total_score']:.0%}
 
 1. **Lead with empathy** - Acknowledge their experience with 1-2 warm sentences
 
-2. **Offer 1-2 perspectives** from the coaching content:
-   - Present insights as invitations, not prescriptions
-   - "One thing that often helps in situations like this..."
-   - "Something worth considering..."
+2. **Offer 1-2 perspectives** from the coaching content using bullet points:
+   • **First insight** — Present as invitation, not prescription
+   • **Second insight** — Another perspective worth considering
 
 3. **Leave space for their response** - End with a gentle check-in:
    - "Does any of this resonate with you?"
    - "Would you like to explore this further?"
-
-4. **Stay curious** - You may still ask ONE thoughtful follow-up question if it serves their exploration
 
 Balance: 50% acknowledgment/empathy, 50% gentle guidance.
 """
