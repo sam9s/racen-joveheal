@@ -1,16 +1,79 @@
 """
-Rate Limiter for Chatbot Security
+=============================================================================
+RACEN Rate Limiter - Security Module for Conversational AI Chatbots
+=============================================================================
 
-Protects against:
-- DDoS attacks
-- API cost abuse
-- Automated scripts
+Part of: RACEN (Rapid Automation Client Engagement Network)
+         A product line under Raven Solutions Business Process Automation
 
-Features:
-- IP-based rate limiting (10/min, 100/day)
+Applicable Bots: Jovee, SOMERA, GRESTA, Naira, and all future RACEN chatbots
+
+-----------------------------------------------------------------------------
+PROTECTS AGAINST:
+- DDoS attacks (flooding the API)
+- API cost abuse (draining OpenAI/LLM credits)
+- Automated scripts and bots
+
+FEATURES:
+- IP-based rate limiting (configurable thresholds)
 - Session-based message counting
-- IP logging for forensics
-- Simple CAPTCHA challenge after threshold
+- IP logging for monitoring and forensics
+- Simple math CAPTCHA challenge (widget-compatible, no page refresh)
+- Auto-cleanup of old requests (prevents memory bloat)
+
+DEFAULT THRESHOLDS:
+- 10 requests per minute (soft limit)
+- 50 requests per hour (triggers 10-min block)
+- 100 requests per day (triggers 24-hour block)
+- CAPTCHA after 20 messages in session
+
+-----------------------------------------------------------------------------
+USAGE:
+
+1. Import in your Flask app:
+   from rate_limiter import rate_limiter, get_client_ip
+
+2. Add to your chat endpoint:
+   @app.route("/api/chat/stream", methods=["POST"])
+   def api_chat_stream():
+       data = request.get_json()
+       session_id = data.get("session_id", "anonymous")
+       client_ip = get_client_ip(request)
+       
+       # Check for CAPTCHA answer
+       captcha_answer = data.get("captcha_answer")
+       if captcha_answer:
+           if not rate_limiter.verify_captcha(session_id, captcha_answer):
+               return jsonify({"error": "Incorrect answer"}), 400
+       
+       # Check rate limit
+       allowed, reason, captcha = rate_limiter.check_rate_limit(client_ip, session_id)
+       if not allowed:
+           if captcha:
+               return jsonify({"error": reason, "captcha_required": True, "captcha": captcha}), 429
+           return jsonify({"error": reason, "rate_limited": True}), 429
+       
+       # Log and record
+       rate_limiter.log_request(client_ip, session_id, "/api/chat/stream", message[:50])
+       rate_limiter.record_request(client_ip, session_id)
+       
+       # Continue with normal processing...
+
+3. Frontend CAPTCHA handling (JavaScript):
+   if (response.status === 429) {
+       const errorData = await response.json();
+       if (errorData.captcha_required) {
+           const answer = prompt(errorData.captcha?.question);
+           // Retry with captcha_answer in body
+       }
+   }
+
+-----------------------------------------------------------------------------
+DEPENDENCIES: Python standard library only (no pip install needed)
+
+CREATED: December 27, 2024
+DOCUMENTATION: See docs/RACEN_SECURITY_ACTION_PLAN.md
+=============================================================================
 """
 
 import time
