@@ -1676,8 +1676,6 @@ def vapi_custom_llm():
                 user_message = msg.get("content", "")
                 break
         
-        should_end_call = False
-        
         if not user_message:
             response_text = "Hello! I'm SOMERA, your coaching companion. How are you feeling today?"
             save_voice_message_async(call_id, "assistant", response_text)
@@ -1719,29 +1717,6 @@ def vapi_custom_llm():
                 if not skip_voice_optimization:
                     response_text = optimize_response_for_voice(response_text)
                 
-                response_lower = response_text.lower()
-                response_ending = response_lower[-150:] if len(response_lower) > 150 else response_lower
-                
-                strong_farewell_phrases = [
-                    "talk to you soon", "goodbye", "bye for now", "until next time",
-                    "take care of yourself", "wishing you well"
-                ]
-                moderate_farewell_phrases = [
-                    "take care", "be well", "reach out again", 
-                    "come back anytime", "here whenever you're ready"
-                ]
-                
-                has_strong_farewell = any(phrase in response_ending for phrase in strong_farewell_phrases)
-                has_moderate_farewell = any(phrase in response_ending for phrase in moderate_farewell_phrases)
-                
-                is_somera_goodbye = has_strong_farewell or (has_moderate_farewell and len(response_text) < 300)
-                
-                if is_somera_goodbye:
-                    should_end_call = True
-                    closure_type_str = "somera_farewell"
-                    matched = [p for p in strong_farewell_phrases + moderate_farewell_phrases if p in response_ending]
-                    print(f"[VAPI Custom LLM] SOMERA said goodbye (matched: {matched}) - will trigger endCall")
-                
                 elapsed_ms = int((timing_module.time() - request_start) * 1000)
                 
                 save_voice_message_async(call_id, "assistant", response_text, latency_ms=elapsed_ms, closure_type=closure_type_str, sources=sources)
@@ -1767,7 +1742,7 @@ def vapi_custom_llm():
                 response_text = "I'm here with you. Could you share that with me again?"
         
         if stream:
-            return stream_openai_response(response_text, call_id, end_call=should_end_call)
+            return stream_openai_response(response_text, call_id, end_call=False)
         else:
             return jsonify({
                 "id": f"chatcmpl-{call_id}",
