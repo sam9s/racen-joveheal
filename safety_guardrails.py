@@ -1733,6 +1733,7 @@ def apply_llm_critic(
 
 
 GUIDE_MODE_FALLBACK = "I hear you, and I'm here to support you through this."
+MIN_VOICE_CONTENT_THRESHOLD = 60  # Minimum chars for voice to strip questions
 
 
 def strip_trailing_questions_for_guide_mode(response: str, delivery_mode: str = "text") -> Tuple[str, bool]:
@@ -1743,8 +1744,8 @@ def strip_trailing_questions_for_guide_mode(response: str, delivery_mode: str = 
     This function detects and removes trailing question sentences REPEATEDLY until
     the response ends with a statement.
     
-    Edge case: If the entire response is a single question (or only questions remain),
-    replace with a fallback acknowledgment.
+    For voice mode: Only strips if remaining content is substantial (60+ chars).
+    For text mode: Always strips, using fallback if only questions remain.
     
     Args:
         response: The response from the LLM
@@ -1769,11 +1770,16 @@ def strip_trailing_questions_for_guide_mode(response: str, delivery_mode: str = 
         sentences = re.split(r'(?<=[.!?])\s+', modified.strip())
         
         if len(sentences) <= 1:
+            if delivery_mode == "voice":
+                return response, False
             modified = GUIDE_MODE_FALLBACK
             break
         
         if sentences[-1].strip().endswith('?'):
-            modified = ' '.join(sentences[:-1]).strip()
+            potential_result = ' '.join(sentences[:-1]).strip()
+            if delivery_mode == "voice" and len(potential_result) < MIN_VOICE_CONTENT_THRESHOLD:
+                return response, False
+            modified = potential_result
         else:
             break
     

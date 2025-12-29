@@ -817,6 +817,8 @@ NOTE: I don't have specific coaching content for this topic in my knowledge base
         final_response = critic_response
         
         # Strip trailing questions when in guide mode
+        # For voice: only strips if remaining content is substantial (60+ chars)
+        # For text: always strips, uses fallback if only questions remain
         if solution_mode or readiness_guide:
             final_response, was_question_stripped = strip_trailing_questions_for_guide_mode(final_response, delivery_mode)
             if was_question_stripped:
