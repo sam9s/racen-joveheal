@@ -1730,3 +1730,63 @@ def apply_llm_critic(
     except Exception as e:
         print(f"LLM critic error (falling back to original): {e}")
         return response, False
+
+
+GUIDE_MODE_FALLBACK = "I hear you, and I'm here to support you through this."
+
+
+def strip_trailing_questions_for_guide_mode(response: str, delivery_mode: str = "text") -> Tuple[str, bool]:
+    """
+    Post-process SOMERA responses to remove trailing questions when in guide mode.
+    
+    When the user has explicitly asked for help, SOMERA should NOT keep asking questions.
+    This function detects and removes trailing question sentences REPEATEDLY until
+    the response ends with a statement.
+    
+    Edge case: If the entire response is a single question (or only questions remain),
+    replace with a fallback acknowledgment.
+    
+    Args:
+        response: The response from the LLM
+        delivery_mode: "text" or "voice"
+    
+    Returns:
+        (processed_response, was_modified)
+    """
+    import re
+    
+    original = response
+    modified = response.strip()
+    
+    if not modified.endswith('?'):
+        return response, False
+    
+    max_iterations = 5
+    for _ in range(max_iterations):
+        if not modified.strip().endswith('?'):
+            break
+        
+        sentences = re.split(r'(?<=[.!?])\s+', modified.strip())
+        
+        if len(sentences) <= 1:
+            modified = GUIDE_MODE_FALLBACK
+            break
+        
+        if sentences[-1].strip().endswith('?'):
+            modified = ' '.join(sentences[:-1]).strip()
+        else:
+            break
+    
+    was_modified = modified != original.strip()
+    
+    if was_modified:
+        log_guardrail_activation(
+            guardrail_type="guide_mode_question_removal",
+            trigger_pattern="trailing_question",
+            user_message="",
+            action_taken="question_removed",
+            original_text=original[-150:] if len(original) > 150 else original,
+            corrected_text=modified[-150:] if len(modified) > 150 else modified
+        )
+    
+    return modified, was_modified

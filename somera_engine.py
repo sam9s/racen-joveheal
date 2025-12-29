@@ -16,7 +16,8 @@ from safety_guardrails import (
     get_somera_system_prompt,
     apply_safety_filters,
     filter_response_for_safety,
-    apply_llm_critic
+    apply_llm_critic,
+    strip_trailing_questions_for_guide_mode
 )
 from emotional_patterns import (
     identify_emotional_patterns,
@@ -653,20 +654,31 @@ When appropriate, gently probe if they notice similar feelings in other areas:
         if delivery_mode == "voice":
             solution_mode_directive = """
 
-=== ⚠️ VOICE GUIDANCE MODE - KEEP IT SHORT ===
+=== ⚠️ VOICE GUIDANCE MODE - PROVIDE ANSWERS, NOT QUESTIONS ===
 
-The user asked for guidance. Give them ONE insight in 2-3 sentences MAX.
+The user EXPLICITLY asked for help. Give them guidance NOW. Do NOT ask more questions.
 
 **VOICE RULES (CRITICAL):**
 1. ONE insight only - not multiple points
 2. Maximum 3 sentences total
-3. End with "Would you like to hear more?" or similar invitation
-4. NO lists, NO "First... Second..."
+3. DO NOT END WITH A QUESTION - the user already asked for help
+4. Instead, end with a reflection or statement like: "This might be worth sitting with."
+5. NO lists, NO "First... Second..."
 
-**EXAMPLE:**
-"That pattern of giving but not receiving - it often comes from a belief that asking for your needs makes you a burden. When you can start honoring your own needs as valid, the dynamic shifts. Would you like to explore this a bit more?"
+**BANNED ENDINGS (DO NOT USE):**
+- "What do you think about that?"
+- "Would you like to explore this further?"
+- "How does that resonate?"
+- "What comes up for you?"
+- Any question asking them to reflect or respond
 
-That's it. Short. Direct. One idea at a time.
+**GOOD EXAMPLE:**
+"That pattern of giving but not receiving - it often comes from a belief that asking for your needs makes you a burden. When you can start honoring your own needs as valid, the dynamic naturally shifts."
+
+**BAD EXAMPLE:**
+"That pattern... Would you like to explore this a bit more?" ← NO! They already asked for help.
+
+That's it. Short. Direct. One idea. No question at the end.
 """
         else:
             solution_mode_directive = """
@@ -712,17 +724,23 @@ The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PR
         if delivery_mode == "voice":
             solution_mode_directive = f"""
 
-=== VOICE GUIDANCE MODE ===
+=== VOICE GUIDANCE MODE - PROVIDE VALUE ===
 
-The user seems ready for gentle guidance. Keep it SHORT and CONVERSATIONAL.
+The user has signaled they're ready for guidance. Give them something valuable.
 
 **VOICE RULES:**
 - 2-3 sentences max
-- ONE insight or reflection
-- Simple question at the end
+- ONE insight or reflection - make it count
+- End with a statement, NOT a question (they're tired of questions)
+- Only ask ONE simple check-in if absolutely needed: "Does that resonate?"
 
-**EXAMPLE:**
-"I'm noticing a pattern in what you're sharing - when you express your needs, you feel like a burden. That's worth exploring. Does that resonate with you?"
+**GOOD EXAMPLE:**
+"I'm noticing a pattern in what you're sharing - when you express your needs, you feel like a burden. This often comes from childhood, where asking for help felt unsafe. That awareness itself is the first step toward change."
+
+**WHAT NOT TO DO:**
+- Don't ask multiple questions
+- Don't ask "What do you think might help?"
+- Don't deflect back to them with "How does that feel?"
 """
         else:
             solution_mode_directive = f"""
@@ -797,6 +815,12 @@ NOTE: I don't have specific coaching content for this topic in my knowledge base
         
         critic_response, was_critic_corrected = apply_llm_critic(filtered_response)
         final_response = critic_response
+        
+        # Strip trailing questions when in guide mode
+        if solution_mode or readiness_guide:
+            final_response, was_question_stripped = strip_trailing_questions_for_guide_mode(final_response, delivery_mode)
+            if was_question_stripped:
+                print(f"[SOMERA Debug] Stripped trailing question in guide mode")
         
         sources = []
         seen_videos = set()
@@ -931,20 +955,31 @@ When appropriate, gently probe if they notice similar feelings in other areas:
         if delivery_mode == "voice":
             solution_mode_directive = """
 
-=== ⚠️ VOICE GUIDANCE MODE - KEEP IT SHORT ===
+=== ⚠️ VOICE GUIDANCE MODE - PROVIDE ANSWERS, NOT QUESTIONS ===
 
-The user asked for guidance. Give them ONE insight in 2-3 sentences MAX.
+The user EXPLICITLY asked for help. Give them guidance NOW. Do NOT ask more questions.
 
 **VOICE RULES (CRITICAL):**
 1. ONE insight only - not multiple points
 2. Maximum 3 sentences total
-3. End with "Would you like to hear more?" or similar invitation
-4. NO lists, NO "First... Second..."
+3. DO NOT END WITH A QUESTION - the user already asked for help
+4. Instead, end with a reflection or statement like: "This might be worth sitting with."
+5. NO lists, NO "First... Second..."
 
-**EXAMPLE:**
-"That pattern of giving but not receiving - it often comes from a belief that asking for your needs makes you a burden. When you can start honoring your own needs as valid, the dynamic shifts. Would you like to explore this a bit more?"
+**BANNED ENDINGS (DO NOT USE):**
+- "What do you think about that?"
+- "Would you like to explore this further?"
+- "How does that resonate?"
+- "What comes up for you?"
+- Any question asking them to reflect or respond
 
-That's it. Short. Direct. One idea at a time.
+**GOOD EXAMPLE:**
+"That pattern of giving but not receiving - it often comes from a belief that asking for your needs makes you a burden. When you can start honoring your own needs as valid, the dynamic naturally shifts."
+
+**BAD EXAMPLE:**
+"That pattern... Would you like to explore this a bit more?" ← NO! They already asked for help.
+
+That's it. Short. Direct. One idea. No question at the end.
 """
         else:
             solution_mode_directive = """
@@ -990,17 +1025,23 @@ The user has EXPLICITLY requested guidance, steps, or solutions. You MUST now PR
         if delivery_mode == "voice":
             solution_mode_directive = f"""
 
-=== VOICE GUIDANCE MODE ===
+=== VOICE GUIDANCE MODE - PROVIDE VALUE ===
 
-The user seems ready for gentle guidance. Keep it SHORT and CONVERSATIONAL.
+The user has signaled they're ready for guidance. Give them something valuable.
 
 **VOICE RULES:**
 - 2-3 sentences max
-- ONE insight or reflection
-- Simple question at the end
+- ONE insight or reflection - make it count
+- End with a statement, NOT a question (they're tired of questions)
+- Only ask ONE simple check-in if absolutely needed: "Does that resonate?"
 
-**EXAMPLE:**
-"I'm noticing a pattern in what you're sharing - when you express your needs, you feel like a burden. That's worth exploring. Does that resonate with you?"
+**GOOD EXAMPLE:**
+"I'm noticing a pattern in what you're sharing - when you express your needs, you feel like a burden. This often comes from childhood, where asking for help felt unsafe. That awareness itself is the first step toward change."
+
+**WHAT NOT TO DO:**
+- Don't ask multiple questions
+- Don't ask "What do you think might help?"
+- Don't deflect back to them with "How does that feel?"
 """
         else:
             solution_mode_directive = f"""

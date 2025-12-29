@@ -242,12 +242,35 @@ def detect_explicit_solution_request(message: str) -> bool:
     return False
 
 
+def check_prior_guide_mode(conversation_history: List[dict]) -> bool:
+    """
+    Check if any previous message in the conversation triggered guide mode.
+    This provides 'stickiness' - once user enters guide mode, we stay there
+    unless they explicitly retreat.
+    
+    Returns True if guide mode was previously activated.
+    """
+    if not conversation_history:
+        return False
+    
+    for msg in conversation_history:
+        if msg.get("role") == "user":
+            content = msg.get("content", "")
+            if detect_explicit_solution_request(content):
+                return True
+    
+    return False
+
+
 def calculate_readiness_score(
     current_message: str,
     conversation_history: List[dict] = None
 ) -> Dict:
     """
     Calculate overall readiness score for transitioning to guidance mode.
+    
+    NEW: Includes "stickiness" - once guide mode is activated by an explicit request,
+    it remains active for the rest of the conversation unless user explicitly retreats.
     
     Returns:
         Dict with:
@@ -273,7 +296,27 @@ def calculate_readiness_score(
                 "repetition": 0.0,
                 "depth": 0.0,
             },
-            "explicit_request": True
+            "explicit_request": True,
+            "sticky_guide": False
+        }
+    
+    # STICKINESS: If user previously triggered guide mode, maintain it
+    prior_guide = check_prior_guide_mode(conversation_history)
+    if prior_guide:
+        return {
+            "total_score": 0.70,
+            "is_ready": True,
+            "recommendation": "guide",
+            "components": {
+                "breakthrough": 0.0,
+                "confusion": 0.0,
+                "exhaustion": 0.0,
+                "engagement_drop": 0.0,
+                "repetition": 0.0,
+                "depth": 0.0,
+            },
+            "explicit_request": False,
+            "sticky_guide": True
         }
     
     breakthrough = calculate_breakthrough_score(current_message)
