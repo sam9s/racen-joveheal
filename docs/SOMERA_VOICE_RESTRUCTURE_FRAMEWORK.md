@@ -199,3 +199,27 @@ Once transcript is received:
 - Step 3 (Release) is explicitly a HANDOFF - SOMERA should never attempt energetic/somatic work
 - Readiness scoring system already exists - we use it for transition detection
 - The goal is "master coach asking one powerful question" not "junior coach asking 20 questions"
+
+---
+
+## CRITICAL: Core Functionality Must Be Preserved
+
+**The RAG/Knowledge Base retrieval is the heart of SOMERA.** All changes to prompts and pacing are about HOW responses are delivered, NOT what knowledge they draw from.
+
+### What Must NOT Change:
+1. **Vector database queries** - SOMERA must still search the ChromaDB knowledge base for relevant coaching content
+2. **Source attribution** - Responses should still be grounded in Shweta's actual content (transcripts, courses, sessions)
+3. **Pattern matching** - The emotional_patterns.py system that maps issues to root causes
+4. **Knowledge retrieval flow** - User message → RAG search → Context-enhanced response
+
+### What Changes:
+1. **Response formatting** - Shorter, more concise delivery
+2. **Question pacing** - One question per turn instead of multiple
+3. **Turn structure** - Explicit guidance for each conversation stage
+
+### The Formula:
+```
+SAME knowledge retrieval + SAME coaching content + SHORTER delivery = Improved SOMERA
+```
+
+Shweta is happy with the SOLUTIONS coming from the database. The issue is only with the VERBOSITY and REPETITION of how those solutions are presented. We fix the presentation layer, not the knowledge layer.
