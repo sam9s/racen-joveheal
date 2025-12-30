@@ -1318,7 +1318,11 @@ def handle_vapi_assistant_request(message: dict, call_id: str):
             },
             "voice": {
                 "provider": "11labs",
-                "voiceId": elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM"
+                "voiceId": elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM",
+                "stability": 0.5,
+                "similarityBoost": 0.75,
+                "speed": 0.95,
+                "optimizeStreamingLatency": 4
             },
             "transcriber": {
                 "provider": "deepgram",
