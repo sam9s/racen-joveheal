@@ -76,6 +76,7 @@ DASHBOARD_PASSWORD = "Shaveta@098"
 DASHBOARD_EMAIL = "shaveta@joveheal.com"
 VOICE_DEMO_USER = "demo"
 VOICE_DEMO_PASS = "SomeraDemo2024"
+ELEVENLABS_VOICE_ID = "vGbgwPy8hZpdnRvn6fTX"
 
 [userenv.development]
 NEXT_PUBLIC_VAPI_PUBLIC_KEY = "135fdcab-d4e9-4729-ac09-a905d8793170"
