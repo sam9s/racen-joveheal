@@ -18,6 +18,10 @@ st.set_page_config(
     layout="centered"
 )
 
+# Set max upload size to 500MB
+import streamlit.config as _config
+_config.set_option('server.maxUploadSize', 500)
+
 st.title("🎙️ Video Transcription Tool")
 
 def get_audio_duration(audio_path: str) -> float:
