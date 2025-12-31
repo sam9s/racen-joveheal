@@ -120,12 +120,18 @@ The architecture separates concerns into a Next.js frontend (port 5000), a Flask
 - "What kept you safe at five years old is now keeping you stuck."
 - "You can't release what you can't see."
 
-### Implementation Checklist (PENDING)
-- [ ] Rewrite voice system prompt using SOMERA_VOICE_FRAMEWORK_COMPLETED.md
-- [ ] Ensure turn-based behavior (pattern naming by Turn 3)
-- [ ] Integrate readiness thresholds with turn behavior
-- [ ] Test and validate
-- [ ] Deploy and get Shweta's feedback
+### Implementation Checklist (PENDING - Awaiting Shweta Review)
+See `docs/SOMERA_VOICE_IMPLEMENTATION_PLAN.md` for comprehensive 6-phase plan.
+
+**Phases:**
+1. Style Exemplar Collection (create tagged Shweta exchanges)
+2. Prompt Construction Service (dynamic turn/readiness-aware prompts)
+3. Style Validator (enforce brevity, single question, no repetition)
+4. Integration & Wiring (connect to existing flow)
+5. Testing & Validation
+6. Deployment
+
+**Git Branch:** `somera-voice-improvements` (safe to rollback to `main`)
 
 ### Architecture Reminder
 **SOMERA Voice uses the SAME backend as SOMERA Text:**
