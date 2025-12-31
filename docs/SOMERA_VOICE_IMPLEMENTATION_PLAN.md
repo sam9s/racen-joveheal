@@ -14,13 +14,14 @@
 1. [Executive Summary](#executive-summary)
 2. [Current Architecture](#current-architecture)
 3. [The Problem We're Solving](#the-problem-were-solving)
-4. [Proposed Solution Architecture](#proposed-solution-architecture)
-5. [Implementation Phases](#implementation-phases)
-6. [Technical Specifications](#technical-specifications)
-7. [Risk Assessment](#risk-assessment)
-8. [Success Criteria](#success-criteria)
-9. [Rollback Plan](#rollback-plan)
-10. [Questions for Shweta](#questions-for-shweta)
+4. [CRITICAL: SOMERA Text Protection Strategy](#critical-somera-text-protection-strategy)
+5. [Proposed Solution Architecture](#proposed-solution-architecture)
+6. [Implementation Phases](#implementation-phases)
+7. [Technical Specifications](#technical-specifications)
+8. [Risk Assessment](#risk-assessment)
+9. [Success Criteria](#success-criteria)
+10. [Rollback Plan](#rollback-plan)
+11. [Questions for Shweta](#questions-for-shweta)
 
 ---
 
@@ -41,6 +42,17 @@ We are NOT hardcoding Shweta's phrases. Instead, we are:
 RAG Knowledge Base = WHAT Shweta would teach (the solutions)
 Style Layer (new)  = HOW Shweta would deliver it (the methodology)
 ```
+
+### Critical Architecture Constraint
+**SOMERA Voice and SOMERA Text share the same backend function:** `generate_somera_response()` in `somera_engine.py`. 
+
+This means:
+- ALL changes to this function affect BOTH modes
+- We MUST use conditional logic to isolate Voice-specific behavior
+- We MUST test Text mode before and after every change
+- Failure to do this will break the existing Text product
+
+See [SOMERA Text Protection Strategy](#critical-somera-text-protection-strategy) for detailed safeguards.
 
 ---
 
@@ -136,6 +148,260 @@ carrying this?"
 - Body-aware ("carrying")
 - No lecturing
 - Shweta's warm but direct tone
+
+---
+
+## CRITICAL: SOMERA Text Protection Strategy
+
+### The Risk
+
+**SOMERA Voice and SOMERA Text share the same backend function:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SHARED ARCHITECTURE                          │
+└─────────────────────────────────────────────────────────────────┘
+
+SOMERA Voice (VAPI) ─────┐
+                         │
+                         ├──► generate_somera_response()  ──► Response
+                         │    (in somera_engine.py)
+SOMERA Text (Web UI) ────┘
+                         │
+                         └──► Parameter: delivery_mode = "voice" or "text"
+```
+
+**If we modify `generate_somera_response()` without careful isolation, we will break SOMERA Text.**
+
+This is not hypothetical - it is a certainty. Both products call the exact same function.
+
+---
+
+### Classification of Changes
+
+Every proposed change falls into one of three categories:
+
+#### Category A: SHARED (Affects Both - Intentional)
+
+These changes improve both Voice and Text and should be applied universally:
+
+| Change | Reason to Share |
+|--------|-----------------|
+| RAG retrieval improvements | Both need better coaching content |
+| Pattern detection enhancements | Both need accurate pattern identification |
+| Readiness scoring refinements | Both need to know user's readiness state |
+| Safety guardrail updates | Both need crisis detection, PII filtering |
+| Bug fixes in shared code | Both benefit from stability |
+
+#### Category B: VOICE-ONLY (Must Be Isolated)
+
+These changes are specific to voice delivery and MUST NOT affect Text:
+
+| Change | Why Voice-Only | Text Behavior |
+|--------|----------------|---------------|
+| Max 2-3 sentences | Voice needs brevity | Text can be 4-6 sentences |
+| Max 1 question per response | Voice is real-time | Text can have follow-ups |
+| Style exemplar retrieval | Voice needs speech cadence | Text uses existing prompts |
+| Strict validation + retry | Voice has latency constraints | Text is more flexible |
+| Acknowledgment variety tracking | Voice repetition is jarring | Text less noticeable |
+| Banned phrases ("I hear you") | Voice sounds scripted | Text is acceptable |
+
+#### Category C: POTENTIALLY SHARED (Requires Discussion)
+
+These changes MIGHT benefit both, but need Shweta's input:
+
+| Change | Voice Benefit | Text Consideration |
+|--------|---------------|-------------------|
+| Turn-aware behavior | Yes - clear progression | Maybe - could help structure |
+| Pattern naming timing | Yes - by Turn 3 | Maybe - depends on chat length |
+| Discovery Call integration | Yes - natural handoff | Already works differently |
+
+---
+
+### Implementation Safeguards
+
+#### Safeguard 1: Conditional Logic Pattern
+
+Every Voice-only change MUST be wrapped in a delivery_mode check:
+
+```python
+def generate_somera_response(..., delivery_mode: str = "text"):
+    
+    # ═══════════════════════════════════════════════════════════
+    # SHARED CODE: Runs for BOTH Voice and Text
+    # ═══════════════════════════════════════════════════════════
+    
+    readiness_result = calculate_readiness_score(...)
+    patterns = identify_emotional_patterns(...)
+    rag_content = get_enhanced_coaching_context(...)
+    
+    # ═══════════════════════════════════════════════════════════
+    # VOICE-ONLY CODE: Only runs when delivery_mode == "voice"
+    # ═══════════════════════════════════════════════════════════
+    
+    if delivery_mode == "voice":
+        # Voice-specific: Style exemplar retrieval
+        style_examples = retrieve_style_exemplars(...)
+        
+        # Voice-specific: Dynamic prompt with strict constraints
+        prompt = build_shweta_voice_prompt(
+            rag_content=rag_content,
+            style_examples=style_examples,
+            max_sentences=3,
+            max_questions=1
+        )
+        
+        # Voice-specific: Validation with retry
+        response = generate_with_validation(prompt, ...)
+        
+    else:
+        # ═══════════════════════════════════════════════════════
+        # TEXT MODE: Preserves existing behavior UNCHANGED
+        # ═══════════════════════════════════════════════════════
+        
+        # Text uses existing prompt construction (no changes)
+        prompt = build_existing_text_prompt(rag_content, ...)
+        
+        # Text uses existing generation (no validation layer)
+        response = generate_response(prompt, ...)
+    
+    # ═══════════════════════════════════════════════════════════
+    # SHARED POST-PROCESSING: Runs for BOTH Voice and Text
+    # ═══════════════════════════════════════════════════════════
+    
+    response = apply_llm_critic(response, ...)
+    response = filter_response_for_safety(response, ...)
+    
+    return response
+```
+
+#### Safeguard 2: Mandatory Text Testing
+
+Before ANY deployment, we MUST run these Text mode tests:
+
+| Test Case | Input | Expected Output |
+|-----------|-------|-----------------|
+| Basic greeting | "Hi, I'm feeling stuck" | Warm greeting + open question |
+| Pattern discussion | "I always feel not good enough" | Empathetic exploration, can be multi-sentence |
+| Long conversation | 6+ turns | Natural progression, multiple questions okay |
+| Crisis signal | "I'm having dark thoughts" | Safety redirect to resources |
+| Booking request | "How do I contact Shweta?" | Discovery Call link provided |
+
+**These tests must pass BEFORE and AFTER every change.**
+
+#### Safeguard 3: Separate Function Approach (Alternative)
+
+If conditional logic becomes too complex, we can create entirely separate functions:
+
+```python
+# Option A: Single function with conditionals (proposed)
+def generate_somera_response(..., delivery_mode="text"):
+    if delivery_mode == "voice":
+        return _generate_voice_response(...)
+    else:
+        return _generate_text_response(...)
+
+# Option B: Separate entry points (fallback if needed)
+def generate_somera_voice_response(...):
+    # Voice-specific implementation
+    pass
+
+def generate_somera_text_response(...):
+    # Unchanged existing implementation
+    pass
+```
+
+We start with Option A. If it becomes unwieldy, we refactor to Option B.
+
+#### Safeguard 4: Feature Flag (Emergency Rollback)
+
+We can implement a feature flag to instantly disable Voice changes:
+
+```python
+VOICE_STYLE_ENABLED = True  # Set to False to disable all Voice changes
+
+def generate_somera_response(..., delivery_mode="text"):
+    
+    if delivery_mode == "voice" and VOICE_STYLE_ENABLED:
+        # New Voice behavior
+        return _generate_enhanced_voice_response(...)
+    elif delivery_mode == "voice":
+        # Fallback: Old Voice behavior (same as Text)
+        return _generate_legacy_response(...)
+    else:
+        # Text: Unchanged
+        return _generate_text_response(...)
+```
+
+If Voice changes cause problems, we set `VOICE_STYLE_ENABLED = False` and redeploy.
+
+---
+
+### Testing Protocol
+
+#### Phase 1: Before Any Code Changes
+
+1. Record baseline Text responses for 5 test scenarios
+2. Record baseline Voice responses for 5 test scenarios
+3. Save these as "golden" reference outputs
+
+#### Phase 2: After Each Implementation Phase
+
+1. Run Text mode with same 5 scenarios
+2. Compare to baseline - Text should be IDENTICAL
+3. Run Voice mode with same 5 scenarios
+4. Voice should show improvements (brevity, style, etc.)
+
+#### Phase 3: Before Deployment
+
+1. Full regression test on Text mode
+2. Full test on Voice mode
+3. Manual review of 3 Text transcripts
+4. Manual review of 3 Voice transcripts
+5. Shweta approval on Voice quality
+
+---
+
+### Decision Matrix for Each Change
+
+When implementing any change, use this decision tree:
+
+```
+Is this change about:
+│
+├── RAG content/retrieval?
+│   └── SHARED: Apply to both modes
+│
+├── Safety/guardrails?
+│   └── SHARED: Apply to both modes
+│
+├── Response length/structure?
+│   └── VOICE-ONLY: Wrap in delivery_mode check
+│
+├── Prompt construction style?
+│   └── VOICE-ONLY: Wrap in delivery_mode check
+│
+├── Validation/retry logic?
+│   └── VOICE-ONLY: Wrap in delivery_mode check
+│
+├── Turn/readiness awareness?
+│   └── CHECK WITH SHWETA: May benefit both
+│
+└── Pattern naming timing?
+    └── CHECK WITH SHWETA: May benefit both
+```
+
+---
+
+### Summary: The Non-Negotiable Rules
+
+1. **Every Voice-specific change MUST be wrapped in `if delivery_mode == "voice"`**
+2. **Text mode MUST be tested before and after every change**
+3. **Text behavior MUST remain unchanged unless explicitly approved**
+4. **We MUST have a feature flag for emergency rollback**
+5. **Deployment ONLY after Text regression tests pass**
+
+Failure to follow these rules will break the existing SOMERA Text product.
 
 ---
 
@@ -471,54 +737,79 @@ def validate_shweta_style(response: str, recent_acknowledgments: List[str]) -> d
 
 ### Phase 4: Integration & Wiring (1-2 hours)
 
-**Goal:** Connect all new components into the existing flow.
+**Goal:** Connect all new components into the existing flow WITH PROPER TEXT PROTECTION.
 
 **What we'll do:**
-1. Modify `generate_somera_response()` to use new prompt construction
-2. Add style exemplar retrieval before prompt assembly
-3. Integrate validation with retry logic
-4. Add acknowledgment history tracking
+1. Modify `generate_somera_response()` with `delivery_mode` conditional logic
+2. Add style exemplar retrieval FOR VOICE ONLY
+3. Integrate validation with retry logic FOR VOICE ONLY
+4. Add acknowledgment history tracking FOR VOICE ONLY
+5. Add feature flag `VOICE_STYLE_ENABLED` for emergency rollback
 
-**Modified flow in `somera_engine.py`:**
+**CRITICAL: Modified flow in `somera_engine.py`:**
 
 ```python
-def generate_somera_response(...):
-    # Existing: Get state
+# Feature flag for emergency rollback
+VOICE_STYLE_ENABLED = True
+
+def generate_somera_response(..., delivery_mode: str = "text"):
+    
+    # ═══════════════════════════════════════════════════════════════
+    # SHARED CODE: Runs for BOTH Voice and Text (no changes here)
+    # ═══════════════════════════════════════════════════════════════
+    
     readiness_result = calculate_readiness_score(...)
     patterns = identify_emotional_patterns(...)
     turn_number = count_conversation_turns(...)
     
-    # Existing: Get RAG content
     enhanced_context = get_enhanced_coaching_context(...)
     rag_content = format_coaching_context(enhanced_context["documents"])
     
-    # NEW: Get style examples
-    style_examples = retrieve_style_exemplars(
-        turn_phase=get_turn_phase(turn_number),
-        readiness=readiness_result["recommendation"],
-        patterns=[p.pattern_id for p in patterns[:2]]
-    )
+    # ═══════════════════════════════════════════════════════════════
+    # VOICE-ONLY CODE: Only runs when delivery_mode == "voice"
+    # ═══════════════════════════════════════════════════════════════
     
-    # NEW: Build dynamic prompt
-    prompt = build_shweta_style_prompt(
-        turn_number=turn_number,
-        readiness_phase=readiness_result["recommendation"],
-        detected_patterns=patterns,
-        rag_content=rag_content,
-        style_examples=style_examples,
-        conversation_history=conversation_history
-    )
+    if delivery_mode == "voice" and VOICE_STYLE_ENABLED:
+        # Voice-specific: Get style examples
+        style_examples = retrieve_style_exemplars(
+            turn_phase=get_turn_phase(turn_number),
+            readiness=readiness_result["recommendation"],
+            patterns=[p.pattern_id for p in patterns[:2]]
+        )
+        
+        # Voice-specific: Build dynamic prompt with strict constraints
+        prompt = build_shweta_voice_prompt(
+            turn_number=turn_number,
+            readiness_phase=readiness_result["recommendation"],
+            detected_patterns=patterns,
+            rag_content=rag_content,
+            style_examples=style_examples,
+            conversation_history=conversation_history,
+            max_sentences=3,
+            max_questions=1
+        )
+        
+        # Voice-specific: Generate with validation
+        response = call_llm(prompt, ...)
+        
+        # Voice-specific: Validate style
+        validation = validate_shweta_style(response, recent_acknowledgments)
+        if not validation["valid"]:
+            response = retry_with_stricter_prompt(...)
     
-    # Existing: Generate response
-    response = call_llm(prompt, ...)
+    else:
+        # ═══════════════════════════════════════════════════════════
+        # TEXT MODE (or Voice with feature flag OFF): UNCHANGED
+        # ═══════════════════════════════════════════════════════════
+        
+        # Use existing prompt construction - NO CHANGES
+        prompt = get_existing_text_prompt(...)
+        response = call_llm(prompt, ...)
     
-    # NEW: Validate style
-    validation = validate_shweta_style(response, recent_acknowledgments)
-    if not validation["valid"]:
-        # Retry with stricter prompt
-        response = retry_with_stricter_prompt(...)
+    # ═══════════════════════════════════════════════════════════════
+    # SHARED POST-PROCESSING: Runs for BOTH Voice and Text
+    # ═══════════════════════════════════════════════════════════════
     
-    # Existing: Post-processing
     response = apply_llm_critic(response, ...)
     response = filter_response_for_safety(response, ...)
     
@@ -533,52 +824,77 @@ def generate_somera_response(...):
 
 ### Phase 5: Testing & Validation (2-3 hours)
 
-**Goal:** Ensure the new system works correctly and achieves 90% fidelity.
+**Goal:** Ensure the new system works correctly, achieves 90% Voice fidelity, AND does not break Text mode.
 
 **What we'll do:**
 
-1. **Unit tests:**
-   - Test prompt construction with various states
-   - Test style validation with edge cases
-   - Test exemplar retrieval
+#### 5a. MANDATORY: Text Regression Tests (BEFORE anything else)
 
-2. **Integration tests:**
-   - Full conversation flows
-   - Voice mode specifically
-   - Edge cases (crisis, greetings, closures)
+Run these 5 scenarios in TEXT mode and verify behavior is UNCHANGED:
 
-3. **Fidelity testing:**
-   - Compare outputs against Shweta's actual responses
-   - Measure: brevity, question count, pattern naming timing
+| # | Test Input | Expected Text Behavior | Pass/Fail |
+|---|------------|------------------------|-----------|
+| 1 | "Hi, I'm feeling stuck lately" | Warm greeting + open exploration | ☐ |
+| 2 | "I always feel not good enough" | Empathetic response, 3-6 sentences okay | ☐ |
+| 3 | "I'm having dark thoughts about harming myself" | Crisis redirect to resources | ☐ |
+| 4 | "How do I contact Shweta?" | Discovery Call link provided | ☐ |
+| 5 | Multi-turn (6+ exchanges) | Natural progression, no forced brevity | ☐ |
 
-**Test scenarios:**
+**ALL 5 must pass before proceeding. If ANY fail, stop and debug.**
 
-| Scenario | Turn | Readiness | Expected Behavior |
-|----------|------|-----------|-------------------|
-| First contact | 1 | Explore | Brief acknowledge + open question |
-| Deepening | 2 | Explore | Body/duration question |
+#### 5b. Unit tests (Voice-specific components):
+
+- Test prompt construction with various states
+- Test style validation with edge cases
+- Test exemplar retrieval
+- Test feature flag toggle behavior
+
+#### 5c. Voice Integration tests:
+
+| Scenario | Turn | Readiness | Expected Voice Behavior |
+|----------|------|-----------|-------------------------|
+| First contact | 1 | Explore | Brief acknowledge + open question (≤3 sentences) |
+| Deepening | 2 | Explore | Body/duration question (1 question only) |
 | Pattern spotted | 3 | Transition | Name the pattern |
 | Breakthrough | 4 | Guide | Readiness check |
 | Ready for handoff | 5 | Guide | Discovery Call offer |
 | Crisis signal | Any | Any | Safety redirect |
 | Closure signal | Any | Any | Warm goodbye |
 
+#### 5d. Fidelity testing:
+
+- Compare outputs against Shweta's actual responses
+- Measure: brevity, question count, pattern naming timing
+- Shweta reviews 3+ sample Voice transcripts
+
 ---
 
 ### Phase 6: Deployment (1 hour)
 
-**Goal:** Deploy changes safely with ability to rollback.
+**Goal:** Deploy changes safely with ability to rollback, ensuring Text mode remains stable.
+
+**Pre-deployment checklist:**
+- [ ] Text regression tests passed
+- [ ] Voice integration tests passed
+- [ ] Feature flag `VOICE_STYLE_ENABLED = True` verified
+- [ ] Shweta approved sample Voice outputs
 
 **Deployment steps:**
-1. Merge `somera-voice-improvements` branch to `main`
-2. Restart workflows
-3. Test live VAPI calls
-4. Monitor logs for issues
-5. Get Shweta's feedback
+1. Final Text regression test (one more time)
+2. Merge `somera-voice-improvements` branch to `main`
+3. Restart workflows
+4. Test Text mode immediately after restart
+5. Test Voice mode via VAPI call
+6. Monitor logs for errors
+7. Get Shweta's feedback
 
 **Rollback plan:**
-- If critical issues: `git checkout main` and restart
-- If minor issues: Fix on branch and redeploy
+
+| Issue Level | Action |
+|-------------|--------|
+| Critical (Text broken) | `git checkout main && restart workflows` |
+| Severe (Voice broken) | Set `VOICE_STYLE_ENABLED = False` and redeploy |
+| Minor (Voice needs tuning) | Fix on branch, test, redeploy |
 
 ---
 
@@ -623,13 +939,24 @@ def generate_somera_response(...):
 
 ## Risk Assessment
 
+### CRITICAL RISK: SOMERA Text Interference
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Voice changes break Text mode | HIGH if not managed | SEVERE - breaks production product | See [SOMERA Text Protection Strategy](#critical-somera-text-protection-strategy) |
+
+**This is the #1 risk of this project.** All code changes MUST:
+1. Be wrapped in `if delivery_mode == "voice"` conditionals
+2. Pass Text regression tests before deployment
+3. Have feature flag for emergency rollback
+
 ### High Risk
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Breaking existing SOMERA Text | Users see broken responses | Test both modes before deploy |
-| Breaking existing SOMERA Voice | VAPI calls fail | Keep webhook endpoint unchanged |
-| ChromaDB corruption | All coaching knowledge lost | Backup before changes |
+| Breaking existing SOMERA Text | Users see broken responses | Follow Text Protection Strategy, test both modes, use feature flag |
+| Breaking existing SOMERA Voice | VAPI calls fail | Keep webhook endpoint unchanged, incremental changes |
+| ChromaDB corruption | All coaching knowledge lost | Backup before changes, use separate collection for style |
 
 ### Medium Risk
 
@@ -638,6 +965,7 @@ def generate_somera_response(...):
 | Style validation too strict | Good responses rejected | Start with lenient rules, tighten later |
 | Exemplar retrieval slow | Increased latency | Limit to 2 examples, cache common queries |
 | Pattern naming too aggressive | Feels scripted | Test with real users, adjust turn threshold |
+| Conditional logic becomes complex | Hard to maintain | Consider refactor to separate functions (Option B) |
 
 ### Low Risk
 
