@@ -93,3 +93,43 @@ The architecture separates concerns into a Next.js frontend (port 5000), a Flask
 - **Instagram Integration**: Meta Graph API
 - **Data Analysis**: Pandas (for analytics dashboard)
 - **Transcription**: OpenAI Whisper API
+
+## SOMERA Voice Improvement Work (December 2025)
+
+### Current Status
+**Quick fix deployed** (Dec 31, 2025): Reduced repetitive "I hear you" phrases, added varied acknowledgments. Full framework implementation pending.
+
+### Source Materials (DO NOT FORGET)
+1. **Final_Release_transcript.txt** (60,942 chars) - Shweta's 101-minute masterclass demonstrating the 4-Step Method
+2. **1_1_Session_Transcripts-_Sample_Data** (141KB, 2039 lines) - Multiple real 1:1 coaching sessions
+
+### Framework Documents
+- `docs/SOMERA_VOICE_RESTRUCTURE_FRAMEWORK.md` - Empty template for future use
+- `docs/SOMERA_VOICE_FRAMEWORK_COMPLETED.md` - **FILLED** with Shweta's actual phrases from transcripts
+
+### Shweta's 4-Step JoveHeal Method
+1. **Acknowledgment** - Help them SEE and NAME the pattern (SOMERA handles fully)
+2. **Decision** - Ask if they're ready to release (SOMERA handles fully)
+3. **Release** - Energetic/somatic release work (HANDOFF to live session)
+4. **Recalibrate** - Integration, new identity (HANDOFF to live session)
+
+### Key Shweta Phrases (from transcripts)
+- "I see you... I also see the version of you that no one talks about"
+- "You don't have separate problems. You have just one pattern showing up everywhere."
+- "Once you see it, it's very easy to work with it."
+- "What kept you safe at five years old is now keeping you stuck."
+- "You can't release what you can't see."
+
+### Implementation Checklist (PENDING)
+- [ ] Rewrite voice system prompt using SOMERA_VOICE_FRAMEWORK_COMPLETED.md
+- [ ] Ensure turn-based behavior (pattern naming by Turn 3)
+- [ ] Integrate readiness thresholds with turn behavior
+- [ ] Test and validate
+- [ ] Deploy and get Shweta's feedback
+
+### Architecture Reminder
+**SOMERA Voice uses the SAME backend as SOMERA Text:**
+- Both call `generate_somera_response()` in `somera_engine.py`
+- Both query ChromaDB RAG for solutions
+- Both use readiness scoring
+- System prompt = HOW to speak, RAG = WHAT to say
