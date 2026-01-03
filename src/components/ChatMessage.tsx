@@ -70,65 +70,77 @@ function performNavigation(url: string): void {
 }
 
 function renderFormattedText(text: string, keyPrefix: string = ''): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  const combinedRegex = /(\*\*([^*]+)\*\*)|(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s]+)/g;
-  let lastIndex = 0;
-  let match;
-  let matchIndex = 0;
-
-  while ((match = combinedRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  
+  lines.forEach((line, lineIndex) => {
+    if (lineIndex > 0) {
+      result.push(<br key={`${keyPrefix}br-${lineIndex}`} />);
     }
     
-    if (match[1]) {
-      // Bold text: **text**
-      const boldText = match[2];
-      parts.push(
-        <strong key={`${keyPrefix}bold-${matchIndex}`} className="font-semibold">
-          {boldText}
-        </strong>
-      );
-    } else if (match[3]) {
-      // Markdown link: [text](url)
-      const linkText = match[4];
-      const url = match[5];
-      parts.push(
-        <a
-          key={`${keyPrefix}link-${matchIndex}`}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
-        >
-          {linkText}
-        </a>
-      );
-    } else if (match[6]) {
-      // Raw URL
-      const url = match[6];
-      parts.push(
-        <a
-          key={`${keyPrefix}url-${matchIndex}`}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors break-all"
-        >
-          {url}
-        </a>
-      );
+    const parts: React.ReactNode[] = [];
+    const combinedRegex = /(\*\*([^*]+)\*\*)|(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s]+)/g;
+    let lastIndex = 0;
+    let match;
+    let matchIndex = 0;
+
+    while ((match = combinedRegex.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(line.slice(lastIndex, match.index));
+      }
+      
+      if (match[1]) {
+        const boldText = match[2];
+        parts.push(
+          <strong key={`${keyPrefix}bold-${lineIndex}-${matchIndex}`} className="font-semibold">
+            {boldText}
+          </strong>
+        );
+      } else if (match[3]) {
+        const linkText = match[4];
+        const url = match[5];
+        parts.push(
+          <a
+            key={`${keyPrefix}link-${lineIndex}-${matchIndex}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors"
+          >
+            {linkText}
+          </a>
+        );
+      } else if (match[6]) {
+        const url = match[6];
+        parts.push(
+          <a
+            key={`${keyPrefix}url-${lineIndex}-${matchIndex}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary-400 hover:text-primary-300 underline underline-offset-2 transition-colors break-all"
+          >
+            {url}
+          </a>
+        );
+      }
+      
+      matchIndex++;
+      lastIndex = match.index + match[0].length;
     }
-    
-    matchIndex++;
-    lastIndex = match.index + match[0].length;
-  }
 
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
+    if (lastIndex < line.length) {
+      parts.push(line.slice(lastIndex));
+    }
 
-  return parts.length > 0 ? parts : [text];
+    if (parts.length > 0) {
+      result.push(...parts);
+    } else if (line.length > 0) {
+      result.push(line);
+    }
+  });
+
+  return result.length > 0 ? result : [text];
 }
 
 function renderLinks(text: string): React.ReactNode[] {
