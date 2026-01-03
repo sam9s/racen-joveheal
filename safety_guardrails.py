@@ -709,6 +709,29 @@ def inject_checkout_urls(response: str, user_message: str = "") -> str:
     return response
 
 
+def format_numbered_lists(response: str) -> str:
+    """
+    Post-process LLM response to ensure numbered lists have proper line breaks.
+    Converts inline numbered lists like "1. Item one 2. Item two" to have each item on its own line.
+    This is a deterministic fix that runs after the LLM response.
+    """
+    import re
+    
+    # Pattern to find numbered items that are NOT at the start of a line
+    # Matches: "... text 2. **Item**" or "... text 3. Item"
+    # We want to insert a newline before the number
+    pattern = r'(?<!\n)(\s+)(\d+\.)\s+(\*\*)'
+    
+    # Replace with newline before the number
+    result = re.sub(pattern, r'\n\n\2 \3', response)
+    
+    # Also handle cases without bold markers
+    pattern2 = r'(?<!\n)(\s+)(\d+\.)\s+([A-Z])'
+    result = re.sub(pattern2, r'\n\n\2 \3', result)
+    
+    return result
+
+
 def inject_program_links(response: str) -> str:
     """
     Post-process LLM response to add clickable links to program mentions.

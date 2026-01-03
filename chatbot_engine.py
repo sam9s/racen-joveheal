@@ -13,7 +13,7 @@ from typing import List, Optional
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from knowledge_base import search_knowledge_base, get_knowledge_base_stats
-from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety, inject_program_links, inject_checkout_urls, append_contextual_links
+from safety_guardrails import apply_safety_filters, get_system_prompt, filter_response_for_safety, inject_program_links, inject_checkout_urls, append_contextual_links, format_numbered_lists
 
 _openai_client = None
 
@@ -320,7 +320,8 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
         
         assistant_message = response.choices[0].message.content
         
-        filtered_response, was_filtered = filter_response_for_safety(assistant_message)
+        formatted_response = format_numbered_lists(assistant_message)
+        filtered_response, was_filtered = filter_response_for_safety(formatted_response)
         
         response_with_checkout_urls = inject_checkout_urls(filtered_response, user_message)
         
@@ -458,7 +459,8 @@ IMPORTANT: Only use information from the context above. If the answer is not in 
                     full_response += content
                     yield {"type": "content", "content": content}
         
-        filtered_response, was_filtered = filter_response_for_safety(full_response)
+        formatted_response = format_numbered_lists(full_response)
+        filtered_response, was_filtered = filter_response_for_safety(formatted_response)
         response_with_checkout_urls = inject_checkout_urls(filtered_response, user_message)
         response_with_links = inject_program_links(response_with_checkout_urls)
         final_response = append_contextual_links(user_message, response_with_links)
