@@ -722,45 +722,71 @@
 
   function createSafeContent(text) {
     const container = document.createDocumentFragment();
-    const combinedRegex = /(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s<>"\)]+)/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = combinedRegex.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        const textBefore = text.substring(lastIndex, match.index);
-        container.appendChild(document.createTextNode(textBefore));
-      }
-      
-      if (match[1]) {
-        const linkText = match[2];
-        const linkUrl = match[3];
-        const link = document.createElement('a');
-        link.href = linkUrl;
-        link.textContent = linkText;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.style.color = '#03a9f4';
-        link.style.textDecoration = 'underline';
-        container.appendChild(link);
-      } else if (match[4]) {
-        const plainUrl = match[4];
-        const link = document.createElement('a');
-        link.href = plainUrl;
-        link.textContent = plainUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.style.color = '#03a9f4';
-        link.style.textDecoration = 'underline';
-        container.appendChild(link);
-      }
-      
-      lastIndex = combinedRegex.lastIndex;
-    }
     
-    if (lastIndex < text.length) {
-      container.appendChild(document.createTextNode(text.substring(lastIndex)));
-    }
+    // Split by newlines first to handle line breaks
+    const lines = text.split('\n');
+    
+    lines.forEach((line, lineIndex) => {
+      // Add line break between lines (not before first line)
+      if (lineIndex > 0) {
+        container.appendChild(document.createElement('br'));
+      }
+      
+      // Skip empty lines but still add the br
+      if (line.trim() === '') {
+        return;
+      }
+      
+      // Process each line for bold, links, and URLs
+      // Combined regex for: **bold**, [text](url), and raw URLs
+      const combinedRegex = /(\*\*([^*]+)\*\*)|(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s<>"\)]+)/g;
+      let lastIndex = 0;
+      let match;
+
+      while ((match = combinedRegex.exec(line)) !== null) {
+        if (match.index > lastIndex) {
+          const textBefore = line.substring(lastIndex, match.index);
+          container.appendChild(document.createTextNode(textBefore));
+        }
+        
+        if (match[1]) {
+          // Bold text: **text**
+          const boldText = match[2];
+          const strong = document.createElement('strong');
+          strong.textContent = boldText;
+          container.appendChild(strong);
+        } else if (match[3]) {
+          // Markdown link: [text](url)
+          const linkText = match[4];
+          const linkUrl = match[5];
+          const link = document.createElement('a');
+          link.href = linkUrl;
+          link.textContent = linkText;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.style.color = '#03a9f4';
+          link.style.textDecoration = 'underline';
+          container.appendChild(link);
+        } else if (match[6]) {
+          // Raw URL
+          const plainUrl = match[6];
+          const link = document.createElement('a');
+          link.href = plainUrl;
+          link.textContent = plainUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.style.color = '#03a9f4';
+          link.style.textDecoration = 'underline';
+          container.appendChild(link);
+        }
+        
+        lastIndex = combinedRegex.lastIndex;
+      }
+      
+      if (lastIndex < line.length) {
+        container.appendChild(document.createTextNode(line.substring(lastIndex)));
+      }
+    });
     
     return container;
   }
